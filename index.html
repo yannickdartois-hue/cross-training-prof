@@ -114,7 +114,7 @@ table.cl tr.moi td{font-weight:700}
 .badge{display:inline-block;padding:2px 9px;border-radius:7px;font:700 max(13px,var(--fs-min,15px)) var(--t);background:var(--sol)}
 .badge.v{background:var(--vert-pale);color:var(--vert)}
 /* Onglets du bas */
-nav.onglets{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,1fr);background:var(--craie);border-top:1px solid var(--trait);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav.onglets{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(7,1fr);background:var(--craie);border-top:1px solid var(--trait);padding-bottom:env(safe-area-inset-bottom);z-index:5}
 nav.onglets button{min-height:62px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:700 max(12px,var(--fs-min,15px)) var(--t);padding:0 2px;color:var(--repere)}
 nav.onglets button b{font:800 17px/1 var(--d);font-stretch:74%}
 nav.onglets button i{font-style:normal;font-size:22px;line-height:1}
@@ -314,6 +314,7 @@ html.chrono-ouvert,html.chrono-ouvert body{overflow:hidden}
 .total-note{border-left:6px solid var(--ligne)}.gros-chiffre{font:800 40px/1 var(--d)}
 .qr-plein{position:fixed;inset:0;z-index:60;background:#fff;display:grid;place-items:center;text-align:center;padding:16px;color:#172033;overflow:auto}.qr-plein h2{margin:0}.qr-plein p{margin:4px 0}
 .qr-plein .qrbox svg{width:min(64vh,90vw);height:auto}
+.alerte-pt{display:inline-block;border:1.5px solid;border-radius:10px;padding:2px 8px;margin:2px;font-weight:700;font-size:max(14px,var(--fs-min,15px))}
 </style>
 <style>#print-area{display:none}@media print{body>*:not(#print-area){display:none!important}#print-area{display:block;color:#000;font:11pt Arial,sans-serif}#print-area table{border-collapse:collapse;width:100%}#print-area td,#print-area th{border:1px solid #999;padding:3px;text-align:left}}</style>
 <style>/* Lisibilité terrain : textes à 15 px minimum à l'écran ; tailles d'origine à l'impression. */@media print{:root{--fs-min:0px}}</style>
