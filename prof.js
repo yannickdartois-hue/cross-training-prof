@@ -109,9 +109,9 @@ function lireAncien(raw){
     else if(raw.startsWith('T:')){mode='TABATA';const x=raw.slice(2).split('|')[0].split('-');lab='plancher '+x[0]+' rép.'+(x[1]?' · total '+x[1]:'')}
     return {mode,score:lab,brut:raw,exos,notes:exos.map((e,i)=>notes[i]||null),niveau:niv,duree,ressenti:rw?rw+' '+(RW_ANC[rw]||''):'',commentaire:rwc}});
   const o={nom:nom.trim(),prenom:prenom.trim(),classe:classeReelle(classe.trim()),coach,ressentiSeance:rs?rs+' '+(RS_ANC[rs]||''):'',commentaire:rc,wods,ts:Date.now(),date:new Date().toLocaleDateString('fr-FR')};
-  DB.ancien=DB.ancien||[];const k=norm(o.nom+' '+o.prenom),i=DB.ancien.findIndex(x=>norm(x.nom+' '+x.prenom)===k&&x.date===o.date);
+  DB.ancien=DB.ancien||[];const k=norm(o.nom+' '+o.prenom),sig=w=>w.map(x=>x.brut).join('|'),i=DB.ancien.findIndex(x=>norm(x.nom+' '+x.prenom)===k&&x.date===o.date&&sig(x.wods)===sig(o.wods));
   if(i>=0)DB.ancien[i]=o;else DB.ancien.push(o);
-  return (i>=0?'Remplacé (ancienne appli) : ':'Reçu (ancienne appli) : ')+o.prenom+' '+o.nom+' · '+wods.length+' WOD';
+  return (i>=0?'Déjà reçu, remplacé (ancienne appli) : ':'Reçu (ancienne appli) : ')+o.prenom+' '+o.nom+' · '+wods.length+' WOD';
 }
 async function lireTexte(t){t=String(t||'').trim();
   if(/^CTE[01]:/.test(t)){const q=await TTQR.decoder(t);if(q.t==='C')throw new Error('C’est un QR de classe, pas une séance.');return importerObjet(CTL.depuisQR(q),'qr')}
@@ -188,6 +188,7 @@ function vClasses(){
     <div><label class="ch">Fichier</label><label class="bt noir" for="cl-fic">Choisir le fichier Pronote</label><input id="cl-fic" type="file" accept=".xlsx,.xls,.csv,.ods,.txt" hidden multiple></div></div>
     <label class="ch" for="cl-txt">Ou coller la liste</label><textarea id="cl-txt" rows="3" placeholder="DUPONT Marie&#10;MARTIN Léo"></textarea>
     <div class="rangee" style="margin-top:8px"><button class="bt mini" type="button" data-act="clcoller">Importer la liste collée</button></div></section>
+  ${L.includes('DEMO')?'':`<section class="carte"><h3>Démonstration</h3><p class="small muted">Pour découvrir l’outil sans vraie classe : une classe « DEMO » de 6 élèves fictifs, avec 3 séances déjà reçues. À retirer ensuite (« Retirer la classe »).</p><button class="bt mini" type="button" data-act="demo">Créer la classe de démonstration</button></section>`}
   ${L.map(c=>{const X=DB.classesL[c];return `<section class="carte"><h3>${esc(c)} <span class="small muted">· ${X.eleves.length} élèves</span></h3>
     <div class="grille2"><div><label class="ch">Niveau</label><div class="rangee">${['p','t'].map(n=>`<button type="button" class="bt mini ${X.niv===n?'noir':''}" data-act="clniv" data-c="${esc(c)}" data-v="${n}">${CTL.NOM_NIV[n]}</button>`).join('')}</div></div>
     <div><label class="ch">Démarche du cycle</label><div class="rangee">${['p','g'].map(n=>`<button type="button" class="bt mini ${X.dem===n?'noir':''}" data-act="cldem" data-c="${esc(c)}" data-v="${n}">${n==='p'?'Progressive':'GAREEPS'}</button>`).join('')}</div></div></div>
@@ -243,7 +244,7 @@ function fiche(k){
   const R=recsDe(k),mob=mobileDe(k),T=derniereInfo(k,'tableau')||{},J=derniereInfo(k,'jourJ');
   const lig=R.map((r,i)=>{if(!r)return `<tr class="vide"><th>S${i+1}</th><td colspan="5" class="muted">rien reçu</td></tr>`;
     const W=r.wods||[];
-    return `<tr><th>S${i+1}<br><small>${esc(r.date||'')}</small>${r.dispense?'<br><b>D</b>':''}</th><td>${W.map(w=>{const D=CTL.decrireWod(w,MOUV);return `${w.fait?'':'<i>prévu</i> '}<b>${esc(D.titre)}</b>${w.special?' · spécial':''}<br><small>${D.format?esc(D.format)+' · ':''}${esc((D.duree?CTL.mmss(D.duree):"sans limite"))}${w.ordre==='h'?' · horizontal':''}${w.res&&w.res.arrete?' · arrêté à '+esc(CTL.mmss(w.res.arrete)):''}</small><ul class="exl">${D.ex.map(e=>`<li>${esc(e.nom)} <small>${esc(e.zone)} N${e.niveau||'?'}${e.reps?' · '+e.reps+' rép.':''}${e.version?(e.version<0?' · version −':' · version +'):''}${e.charge?' · '+e.charge+' kg':''}${e.note?' · <b>exéc. '+esc(noteTxt(e.note,w))+'</b>':''}</small></li>`).join('')}</ul>`}).join('<hr>')||'—'}</td>
+    return `<tr><th>S${i+1}<br><small>${esc(r.date||'')}</small>${r.dispense?'<br><b>D</b>':''}</th><td>${W.map(w=>{const D=CTL.decrireWod(w,MOUV);return `${w.fait?'':'<i>prévu</i> '}<b>${esc(D.titre)}</b>${w.special?' · spécial':''}<br><small>${D.format&&D.format!==D.titre?esc(D.format)+' · ':''}${esc((D.duree?CTL.mmss(D.duree):"sans limite"))}${w.ordre==='h'?' · horizontal':''}${w.res&&w.res.arrete?' · arrêté à '+esc(CTL.mmss(w.res.arrete)):''}</small><ul class="exl">${D.ex.map(e=>`<li>${esc(e.nom)} <small>${esc(e.zone)} N${e.niveau||'?'}${e.reps?' · '+e.reps+' rép.':''}${e.version?(e.version<0?' · version −':' · version +'):''}${e.charge?' · '+e.charge+' kg':''}${e.note?' · <b>exéc. '+esc(noteTxt(e.note,w))+'</b>':''}</small></li>`).join('')}</ul>`}).join('<hr>')||'—'}</td>
       <td>${W.filter(w=>w.fait).map(w=>esc(w.score||CTL.score({f:w.format,p:w.p,res:w.res,exercices:w.exercices||[]})||'')).join('<hr>')}</td><td>${W.filter(w=>w.fait).map(w=>pastFC(w.fc,r.mobile||mob)).join('<hr>')}</td>
       <td>${W.filter(w=>w.fait).map(w=>esc(CTL.ressentiTxt(w.ressenti,w.echelleRessenti||4))+(w.commentaire?'<br><small>« '+esc(w.commentaire)+' »</small>':'')+(w.regulations?' · '+w.regulations+' rég.':'')+(w.noRep?' · '+w.noRep+' NR':'')).join('<hr>')}</td>
       <td class="small">${r.ressentiSeance?'<b>Séance :</b> '+(r.ressentiSeance.etoiles?'★'.repeat(r.ressentiSeance.etoiles)+' ':'')+(r.ressentiSeance.fatigue?'fatigue '+esc(CTL.FATIGUE[r.ressentiSeance.fatigue]):'')+'<br>':''}${r.bilan?'<b>Bilan :</b> '+esc(r.bilan):''}${r.suite?'<br><b>Suite :</b> '+esc(r.suite):''}${r.etoile?`<br><b>Étoile :</b> C${r.etoile.conception} P${r.etoile.production} A${r.etoile.analyse}${r.axePrioritaire?' · axe '+esc((GAREEPS.axes.find(a=>a.id===r.axePrioritaire)||{nom:r.axePrioritaire}).nom):''}`:''}</td></tr>`}).join('');
@@ -303,6 +304,21 @@ function csvAncien(){const L=[['Nom','Prénom','Classe','Coach','WOD n°','Mode'
   (DB.ancien||[]).forEach(o=>o.wods.forEach((w,i)=>L.push([o.nom,o.prenom,o.classe,o.coach,i+1,w.mode,w.duree,w.score,w.niveau,w.exos.map((e,j)=>e+(w.notes[j]?' '+w.notes[j]+'/4':'')).join(' | '),w.ressenti,w.commentaire,i===o.wods.length-1?o.ressentiSeance:'',i===o.wods.length-1?o.commentaire:'',o.date])));
   telecharger('CT_ancienne_appli_'+today()+'.csv',csv(L))}
 
+// Classe de démonstration : élèves fictifs, séances inventées (même forme que les fichiers de l'appli élève)
+function creerDemo(){
+  const noms=['Alice DÉMO','Bruno DÉMO','Chloé DÉMO','David DÉMO','Emma DÉMO','Farid DÉMO'],c='DEMO';
+  DB.classesL[c]={eleves:noms.slice(),lien:'',niv:'p',dem:'p'};
+  const ex=(L,reps,note)=>L.map((id,i)=>{const m=MOUV.find(x=>x.id===id)||{};return {id,nom:m.nom||id,zone:m.z||'',niveau:m.n||null,version:0,reps,charge:id==='goblet-squat'?12:null,noteExecution:note?1+((i+note)%4):null}});
+  noms.forEach((n,k)=>{[1,2,3].forEach(s=>{const mob=k%2?'elev':'mod',fc=mob==='mod'?138+k*3+s:158+k*3+s;
+    const w1={format:'tabata',p:mob==='mod'?{e:30,r:30,n:8}:{e:20,r:20,n:8},ordre:'v',preset:mob==='mod'?'tm1':'te1',exercices:ex(['squat','pompe-genoux','planche','jumping-jack'],0,k+s),fait:true,
+      res:{rounds:[9,8,8,7,8,7,6,7].map(x=>x+(k%3)-1)},fc,ressenti:1+((k+s)%5),echelleRessenti:5,echelleNote:4,commentaire:'Démo : séance '+s};
+    const w2={format:'amrap',p:{min:6},preset:'am6',exercices:ex(['goblet-squat','mountain-climber','crunch'],8,k+s+1),fait:s>1,res:s>1?{tours:3+k%3,amIdx:1,tourT:[70,145,225]}:null,fc:s>1?fc+6:null,ressenti:s>1?2+k%3:null,echelleRessenti:5,echelleNote:4,commentaire:s>1?'AMRAP difficile au 3e tour':''};
+    importerObjet({app:'cross-training-eleves',version:1,classe:c,eleve:n,seance:s,date:'2026-10-'+String(10+s*2).padStart(2,'0'),ts:1790000000+s*1000+k,parcours:'p',mobile:mob,dispense:false,
+      wods:[w1,w2],ressentiSeance:{etoiles:3+(k%3),fatigue:2+(s%3)},bilan:'Bilan démo de '+n.split(' ')[0],suite:'Monter d’un niveau',etirements:s>1,roles:{supporter:true,assistant:s>1,coach:s>2},
+      tableau:{age:16,fcRepos:62+k,mobile:mob,pourquoi:'Démo',charges:12},groupe:[n]},'démo')})});
+  DB.classe=c;journal('Classe de démonstration créée (6 élèves fictifs, 3 séances).');
+}
+
 /* ---------- Évènements ---------- */
 let IDX=0;
 document.addEventListener('click',async ev=>{
@@ -314,6 +330,7 @@ document.addEventListener('click',async ev=>{
     case 'cldem':DB.classesL[b.dataset.c].dem=v;toast('Démarche changée : affiche le nouveau QR de démarrage.');break;
     case 'qrdem':await qrDemarrage(v);return;
     case 'clsuppr':if(!confirm('Retirer la classe '+v+' ? Les séances reçues restent dans la sauvegarde.'))return;delete DB.classesL[v];DB.classe='';break;
+    case 'demo':creerDemo();toast('Classe DEMO créée : regarde Appel, Élèves, Épreuve.');break;
     case 'scan':scanner();return;
     case 'qrtxt':{try{const m=await lireTexte($('#qrtxt').value);journal(m);toast(m)}catch(e){toast(e.message);return}break}
     case 'ancsuppr':if(!confirm('Supprimer cet élève de la liste de l’ancienne appli ?'))return;DB.ancien.splice(+v,1);break;
