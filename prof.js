@@ -10,7 +10,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-const vide=()=>({classesL:{},rec:{},notes:{},noms:{},classe:'',tab:'classes',eleve:'',journal:[]});
+const vide=()=>({classesL:{},rec:{},notes:{},noms:{},classe:'',tab:'classes',eleve:'',journal:[],ancien:[]});
 let DB=(()=>{try{const o=JSON.parse(localStorage.getItem(CLE));return o?Object.assign(vide(),o):vide()}catch(e){return vide()}})();
 function sauver(){try{localStorage.setItem(CLE,JSON.stringify(DB))}catch(e){alert('Mémoire pleine : exporte une sauvegarde puis archive l’année.')}}
 function journal(t){DB.journal.unshift(new Date().toLocaleString('fr-FR')+' · '+t);DB.journal=DB.journal.slice(0,40)}
@@ -89,7 +89,41 @@ async function importerFichiers(files){
   journal(n+' fichier'+(n>1?'s':'')+' importé'+(n>1?'s':'')+(err.length?' · refusés : '+err.join(', '):''));sauver();rendre();
   toast(n+' séance'+(n>1?'s':'')+' importée'+(n>1?'s':'')+(err.length?' · '+err.length+' refusé'+(err.length>1?'s':''):''));
 }
-function scanner(){TTQR.scanner(async t=>{const q=await TTQR.decoder(t);if(q.t==='C')throw new Error('C’est un QR de classe, pas une séance.');const m=importerObjet(CTL.depuisQR(q),'qr');sauver();return m},
+/* QR de l'ancienne appli « Cross Training Pompidou » : NOM;PRÉNOM;CLASSE;SCORE_WOD1|SCORE_WOD2…[;C:coach][;R:ressenti:commentaire]
+   (format et décodage repris de son mode prof). Rangés à part : ils ne portent pas de numéro de séance. */
+const RW_ANC={'1':'Épuisé','2':'Très fatigué','3':'Moyen','4':'Léger','5':'Frais'},RS_ANC={'1':'Épuisé','2':'Très fatigué','3':'Moyen','4':'Légèrement fatigué','5':'Pas fatigué'};
+function lireAncien(raw){
+  const parts=String(raw||'').trim().split(';');if(parts.length<4)throw new Error('Format invalide (attendu NOM;PRÉNOM;CLASSE;SCORE).');
+  const [nom,prenom,classe]=parts;let coach='',rs='',rc='';const sc=[];
+  parts.slice(3).forEach(x=>{if(x.startsWith('C:'))coach=x.slice(2);else if(x.startsWith('R:')){const d=x.slice(2).split(':');rs=d[0]||'';rc=d.slice(1).join(':')}else sc.push(x)});
+  const segs=sc.join(';').split('|').reduce((a,g)=>{if(/^(A:|F:|E\+:|E:|T:)/.test(g))a.push(g);else if(a.length)a[a.length-1]+='|'+g;return a},[]);
+  if(!segs.length)throw new Error('Aucun score lu dans ce QR.');
+  const wods=segs.map(seg=>{const tk=seg.split(';'),raw=tk[0];let exos=[],notes=[],niv='',duree='',rw='',rwc='';
+    tk.slice(1).forEach(t=>{if(t.startsWith('EX:'))exos=t.slice(3).split(',').filter(Boolean);else if(t.startsWith('NE:'))notes=t.slice(3).split(',').map(n=>parseInt(n)||0);
+      else if(t.startsWith('LV:'))niv=t.slice(3);else if(t.startsWith('D:'))duree=t.slice(2);else if(t.startsWith('RW:')){const d=t.slice(3).split(':');rw=d[0];rwc=d.slice(1).join(':')}});
+    let mode='?',lab=raw;
+    if(raw.startsWith('A:')){mode='AMRAP';const a=raw.match(/(\d+)t/),b=raw.match(/=(\d+)r/),c=raw.match(/N(\d)/);lab=(a?a[1]+' tours':'?')+(b?' · '+b[1]+' rép.':'')+(c?' · N'+c[1]:niv?' · N'+niv:'')}
+    else if(raw.startsWith('F:')){mode='FOR TIME';const ok=raw.slice(2).startsWith('OK');lab=(ok?'✓ ':'✗ Cap ')+raw.slice(2).replace('OK-','').replace('CAP-','').split('|')[0]}
+    else if(raw.startsWith('E+:')){mode='EMOM+1';lab=raw.slice(3).split('|')[0].replace('/',' / ')+' min validées'+(niv?' · N'+niv:'')}
+    else if(raw.startsWith('E:')){mode='EMOM';lab=raw.slice(2).split('|')[0].replace('/',' / ')+' min validées'+(niv?' · N'+niv:'')}
+    else if(raw.startsWith('T:')){mode='TABATA';const x=raw.slice(2).split('|')[0].split('-');lab='plancher '+x[0]+' rép.'+(x[1]?' · total '+x[1]:'')}
+    return {mode,score:lab,brut:raw,exos,notes:exos.map((e,i)=>notes[i]||null),niveau:niv,duree,ressenti:rw?rw+' '+(RW_ANC[rw]||''):'',commentaire:rwc}});
+  const o={nom:nom.trim(),prenom:prenom.trim(),classe:classeReelle(classe.trim()),coach,ressentiSeance:rs?rs+' '+(RS_ANC[rs]||''):'',commentaire:rc,wods,ts:Date.now(),date:new Date().toLocaleDateString('fr-FR')};
+  DB.ancien=DB.ancien||[];const k=norm(o.nom+' '+o.prenom),i=DB.ancien.findIndex(x=>norm(x.nom+' '+x.prenom)===k&&x.date===o.date);
+  if(i>=0)DB.ancien[i]=o;else DB.ancien.push(o);
+  return (i>=0?'Remplacé (ancienne appli) : ':'Reçu (ancienne appli) : ')+o.prenom+' '+o.nom+' · '+wods.length+' WOD';
+}
+async function lireTexte(t){t=String(t||'').trim();
+  if(/^CTE[01]:/.test(t)){const q=await TTQR.decoder(t);if(q.t==='C')throw new Error('C’est un QR de classe, pas une séance.');return importerObjet(CTL.depuisQR(q),'qr')}
+  if(/;/.test(t))return lireAncien(t);
+  throw new Error('Ce QR code ne vient pas d’une appli cross training.')}
+async function lirePhoto(f){
+  const img=await createImageBitmap(f),c=document.createElement('canvas'),sc=Math.min(1,1600/Math.max(img.width,img.height));c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+  const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);const d=x.getImageData(0,0,c.width,c.height);
+  if(typeof jsQR!=='function')await chargerScript('jsqr.js','jsQR');
+  const q=jsQR(d.data,d.width,d.height,{inversionAttempts:'attemptBoth'});if(!q)throw new Error('QR non reconnu sur la photo : reprends-la plus nette et bien cadrée.');
+  return lireTexte(q.data)}
+function scanner(){TTQR.scanner(async t=>{const m=await lireTexte(t);sauver();return m},
   {continu:true,titre:'Scanner les QR des élèves',aide:'Les QR s’enchaînent : présentez-les l’un après l’autre.',onClose:n=>{if(n)journal(n+' QR lus');sauver();rendre()}})}
 
 /* ---------- Requêtes ---------- */
@@ -124,10 +158,10 @@ function indices(k){
   const j=derniereInfo(k,'jourJ')||{},ech=(j.echauffement||[]).filter(x=>String(x).trim()).length;
   const fcok=W.filter(w=>CTL.fcDans(w.fc,mob)===0).length,nr=W.reduce((a,w)=>a+(w.noRep||0),0);
   const req=mob==='elev'?3:2;
-  const NE=W.flatMap(w=>(w.exercices||[]).map(e=>e.noteExecution).filter(Boolean)),ne=NE.length?(NE.reduce((x,y)=>x+y,0)/NE.length).toFixed(1).replace('.',','):null,bas=NE.filter(x=>x<=2).length;
-  const exec=ne?`note d’exécution moyenne ${ne}/5 (${NE.length} exercices, ${bas} à 1-2)`:'pas de note d’exécution';
+  const NE=W.flatMap(w=>(w.exercices||[]).map(e=>e.noteExecution?note4(e.noteExecution,w):null).filter(Boolean)),ne=NE.length?(NE.reduce((x,y)=>x+y,0)/NE.length).toFixed(1).replace('.',','):null,bas=NE.filter(x=>x<=2).length;
+  const exec=ne?`note d’exécution moyenne ${ne}/4 (${NE.length} exercices, ${bas} à 1-2)`:'pas de note d’exécution';
   I.p=[`échauffement écrit : ${ech}/4 étapes`,`FC dans la fourchette (${mob?MOBILES[mob].fc:'mobile ?'}) : ${fcok}/${W.length} WOD`,exec+` · no rep : ${nr}`,exec+` · no rep : ${nr}`,'à observer',ev&&ev.etirements?'étirements cochés':'étirements non cochés',`${W.length} WOD réalisés sur ${req} attendus${mob==='mod'?' (modéré : le degré 4 exige 3 cycles, impossible)':''}`];
-  I.a=[`${W.length} WOD avec données`,`FC notée : ${W.filter(w=>w.fc).length}/${W.length} · ressenti : ${W.filter(w=>w.ressenti).length}/${W.length}`,ev&&ev.tableau&&ev.tableau.pourquoi?'justification du mobile écrite':'pas de justification du mobile',ev&&ev.bilan?'bilan écrit':'pas de bilan',ev&&ev.suite?'suite écrite':'pas de « prochaine fois »'];
+  I.a=[`${W.length} WOD avec données`,`FC notée : ${W.filter(w=>w.fc).length}/${W.length} · ressenti : ${W.filter(w=>w.ressenti).length}/${W.length} · commentaire : ${W.filter(w=>w.commentaire).length}/${W.length}`,ev&&ev.tableau&&ev.tableau.pourquoi?'justification du mobile écrite':'pas de justification du mobile',ev&&ev.bilan?'bilan écrit':'pas de bilan',ev&&ev.suite?'suite écrite':'pas de « prochaine fois »'];
   const T=derniereInfo(k,'tableau')||{},tp=[T.age,T.fcRepos,T.mobile,T.pourquoi].filter(Boolean).length;
   const avecW=R.filter(r=>r&&(r.wods||[]).length).length,avecB=R.filter(r=>r&&r.bilan&&r.suite).length,recus=R.filter(Boolean).length;
   I.c=[`tableau personnel : ${tp}/4 rubriques`,`WOD préparés : ${R.filter(r=>r&&(r.wods||[]).some(w=>!w.fait)).length} séances`,`séances avec WOD : ${avecW}/${recus}`,`bilan + suite : ${avecB}/${recus}`];
@@ -167,18 +201,37 @@ function vClasses(){
 function vRecevoir(){
   return `<h2>Recevoir les séances</h2>
   <section class="carte"><h3>QR codes</h3><p class="small muted">En fin de séance, chaque binôme montre un QR par élève (onglet Envoyer).</p><button class="bt orange" type="button" data-act="scan">Scanner les QR des élèves</button></section>
+  <section class="carte"><h3>Photo ou texte du QR</h3><p class="small muted">Si la caméra ne lit pas en direct : prends le QR en photo, ou colle le texte du QR (QR de l’appli élève ou de l’ancienne appli Cross Training Pompidou).</p>
+    <div class="rangee"><label class="bt" for="photoqr">📷 Lire une photo de QR</label><input id="photoqr" type="file" accept="image/*" capture="environment" hidden></div>
+    <label class="ch" for="qrtxt">Texte du QR</label><textarea id="qrtxt" rows="2" placeholder="CTE1:… ou NOM;PRÉNOM;CLASSE;…"></textarea><div class="rangee" style="margin-top:8px"><button class="bt mini" type="button" data-act="qrtxt">Analyser et ajouter</button></div></section>
+  ${vAncien()}
   <section class="carte"><h3>Fichiers</h3><p class="small muted">Fichiers .json déposés dans le Nuage (tu peux télécharger tout le dossier en .zip).</p><label class="bt noir" for="fic">Choisir les fichiers (.json ou .zip)</label><input id="fic" type="file" accept=".json,.zip,application/json,application/zip" multiple hidden></section>
   <section class="carte"><h3>Journal</h3><ul class="small">${DB.journal.slice(0,12).map(x=>`<li>${esc(x)}</li>`).join('')||'<li class="muted">rien pour l’instant</li>'}</ul></section>`;
 }
+function vAncien(){if(!(DB.ancien||[]).length)return '';
+  const f=norm(DB.filtreAnc||''),L=(DB.ancien||[]).map((o,i)=>[o,i]).filter(([o])=>!f||norm(o.nom+' '+o.prenom+' '+o.classe).includes(f)).sort((a,b)=>(a[0].nom+a[0].prenom).localeCompare(b[0].nom+b[0].prenom,'fr'));
+  return `<section class="carte"><h3>Ancienne appli Cross Training Pompidou <span class="small muted">· ${DB.ancien.length} élève${DB.ancien.length>1?'s':''}</span></h3>
+    <input type="search" id="filtreAnc" placeholder="🔍 Rechercher un élève…" value="${esc(DB.filtreAnc||'')}" aria-label="Rechercher">
+    <div class="defile"><table class="tab"><tr><th>Élève</th><th>WOD</th><th>Exercices (note /4)</th><th>Ressentis</th><th></th></tr>${L.map(([o,i])=>`<tr><th>${esc(o.prenom)} ${esc(o.nom.toUpperCase())}<br><small>${esc(o.classe)}${o.coach?' · coach '+esc(o.coach):''} · ${esc(o.date)}</small></th>
+      <td>${o.wods.map(w=>`<b>${esc(w.mode)}</b> ${esc(w.score)}${w.duree?' · '+esc(w.duree)+' min':''}`).join('<br>')}</td>
+      <td class="small">${o.wods.map(w=>w.exos.map((e,j)=>esc(e)+(w.notes[j]?' '+w.notes[j]+'/4 '+esc(CTL.NOTE4[w.notes[j]]||''):'')).join(' · ')||'—').join('<br>')}</td>
+      <td class="small">${o.wods.map(w=>esc(w.ressenti)+(w.commentaire?' « '+esc(w.commentaire)+' »':'')).join('<br>')}${o.ressentiSeance?'<br><b>Séance :</b> '+esc(o.ressentiSeance)+(o.commentaire?' « '+esc(o.commentaire)+' »':''):''}</td>
+      <td><button class="bt mini danger" type="button" data-act="ancsuppr" data-v="${i}" aria-label="Supprimer">✕</button></td></tr>`).join('')}</table></div>
+    <div class="rangee"><button class="bt mini" type="button" data-act="anccsv">⬇ CSV</button><button class="bt mini" type="button" data-act="ancjson">{ } JSON</button></div></section>`}
 function vAppel(){
   if(!DB.classe)return '<p class="muted">Importe d’abord une classe.</p>';
   const E=elevesClasse();
   const tot=n=>E.filter(([k])=>recDe(k,n)).length;
+  const f=norm(DB.filtre||'');const EF=f?E.filter(([k,n])=>norm(n).includes(f)):E;
   return `<h2>Appel · ${esc(DB.classe)}</h2><p class="small muted">✓ séance reçue (nombre de WOD faits) · D dispensé · vide : rien reçu. Touche un nom pour sa fiche.</p>
+  <input type="search" id="filtre" placeholder="🔍 Rechercher un élève…" value="${esc(DB.filtre||'')}" aria-label="Rechercher un élève">
   <div class="defile"><table class="tab"><tr><th>Élève</th>${[...Array(9)].map((_,i)=>`<th>S${i+1}</th>`).join('')}</tr>
-  ${E.map(([k,n])=>`<tr><th><button class="lien" type="button" data-act="fiche" data-v="${esc(k)}">${esc(n)}</button></th>${[...Array(9)].map((_,i)=>{const r=recDe(k,i+1);if(!r)return '<td></td>';const f=(r.wods||[]).filter(w=>w.fait).length;return `<td class="${r.dispense?'d':'ok'}">${r.dispense?'D':'✓'+(f?' '+f:'')}</td>`}).join('')}</tr>`).join('')}
+  ${EF.map(([k,n])=>`<tr><th><button class="lien" type="button" data-act="fiche" data-v="${esc(k)}">${esc(n)}</button></th>${[...Array(9)].map((_,i)=>{const r=recDe(k,i+1);if(!r)return '<td></td>';const f=(r.wods||[]).filter(w=>w.fait).length;return `<td class="${r.dispense?'d':'ok'}">${r.dispense?'D':'✓'+(f?' '+f:'')}</td>`}).join('')}</tr>`).join('')}
   <tr class="total"><th>Reçus</th>${[...Array(9)].map((_,i)=>`<td>${tot(i+1)}/${E.length}</td>`).join('')}</tr></table></div>`;
 }
+// note d'exécution : sur 4 (échelle de l'appli d'origine) ; les séances enregistrées avant étaient sur 5
+const noteTxt=(n,w)=>w&&w.echelleNote===5?n+'/5':n+'/4 '+(CTL.NOTE4[n]||'');
+const note4=(n,w)=>w&&w.echelleNote===5?n*4/5:n;
 const pastFC=(fc,mob)=>{const d=CTL.fcDans(fc,mob);return fc?`<span class="fc ${d==null?'':d===0?'dans':d<0?'sous':'dessus'}">${fc}</span>`:'—'};
 function vEleves(){
   if(!DB.classe)return '<p class="muted">Importe d’abord une classe.</p>';
@@ -190,10 +243,10 @@ function fiche(k){
   const R=recsDe(k),mob=mobileDe(k),T=derniereInfo(k,'tableau')||{},J=derniereInfo(k,'jourJ');
   const lig=R.map((r,i)=>{if(!r)return `<tr class="vide"><th>S${i+1}</th><td colspan="5" class="muted">rien reçu</td></tr>`;
     const W=r.wods||[];
-    return `<tr><th>S${i+1}<br><small>${esc(r.date||'')}</small>${r.dispense?'<br><b>D</b>':''}</th><td>${W.map(w=>{const D=CTL.decrireWod(w,MOUV);return `${w.fait?'':'<i>prévu</i> '}<b>${esc(D.titre)}</b>${w.special?' · spécial':''}<br><small>${D.format?esc(D.format)+' · ':''}${esc((D.duree?CTL.mmss(D.duree):"sans limite"))}${w.ordre==='h'?' · horizontal':''}${w.res&&w.res.arrete?' · arrêté à '+esc(CTL.mmss(w.res.arrete)):''}</small><ul class="exl">${D.ex.map(e=>`<li>${esc(e.nom)} <small>${esc(e.zone)} N${e.niveau||'?'}${e.reps?' · '+e.reps+' rép.':''}${e.version?(e.version<0?' · version −':' · version +'):''}${e.note?' · <b>exéc. '+e.note+'/5</b>':''}</small></li>`).join('')}</ul>`}).join('<hr>')||'—'}</td>
-      <td>${W.filter(w=>w.fait).map(w=>esc(w.score||CTL.score({f:w.format,p:w.p,res:w.res})||'')).join('<hr>')}</td><td>${W.filter(w=>w.fait).map(w=>pastFC(w.fc,r.mobile||mob)).join('<hr>')}</td>
-      <td>${W.filter(w=>w.fait).map(w=>(w.ressenti||'—')+'/4'+(w.regulations?' · '+w.regulations+' rég.':'')+(w.noRep?' · '+w.noRep+' NR':'')).join('<hr>')}</td>
-      <td class="small">${r.bilan?'<b>Bilan :</b> '+esc(r.bilan):''}${r.suite?'<br><b>Suite :</b> '+esc(r.suite):''}${r.etoile?`<br><b>Étoile :</b> C${r.etoile.conception} P${r.etoile.production} A${r.etoile.analyse}${r.axePrioritaire?' · axe '+esc((GAREEPS.axes.find(a=>a.id===r.axePrioritaire)||{nom:r.axePrioritaire}).nom):''}`:''}</td></tr>`}).join('');
+    return `<tr><th>S${i+1}<br><small>${esc(r.date||'')}</small>${r.dispense?'<br><b>D</b>':''}</th><td>${W.map(w=>{const D=CTL.decrireWod(w,MOUV);return `${w.fait?'':'<i>prévu</i> '}<b>${esc(D.titre)}</b>${w.special?' · spécial':''}<br><small>${D.format?esc(D.format)+' · ':''}${esc((D.duree?CTL.mmss(D.duree):"sans limite"))}${w.ordre==='h'?' · horizontal':''}${w.res&&w.res.arrete?' · arrêté à '+esc(CTL.mmss(w.res.arrete)):''}</small><ul class="exl">${D.ex.map(e=>`<li>${esc(e.nom)} <small>${esc(e.zone)} N${e.niveau||'?'}${e.reps?' · '+e.reps+' rép.':''}${e.version?(e.version<0?' · version −':' · version +'):''}${e.charge?' · '+e.charge+' kg':''}${e.note?' · <b>exéc. '+esc(noteTxt(e.note,w))+'</b>':''}</small></li>`).join('')}</ul>`}).join('<hr>')||'—'}</td>
+      <td>${W.filter(w=>w.fait).map(w=>esc(w.score||CTL.score({f:w.format,p:w.p,res:w.res,exercices:w.exercices||[]})||'')).join('<hr>')}</td><td>${W.filter(w=>w.fait).map(w=>pastFC(w.fc,r.mobile||mob)).join('<hr>')}</td>
+      <td>${W.filter(w=>w.fait).map(w=>esc(CTL.ressentiTxt(w.ressenti,w.echelleRessenti||4))+(w.commentaire?'<br><small>« '+esc(w.commentaire)+' »</small>':'')+(w.regulations?' · '+w.regulations+' rég.':'')+(w.noRep?' · '+w.noRep+' NR':'')).join('<hr>')}</td>
+      <td class="small">${r.ressentiSeance?'<b>Séance :</b> '+(r.ressentiSeance.etoiles?'★'.repeat(r.ressentiSeance.etoiles)+' ':'')+(r.ressentiSeance.fatigue?'fatigue '+esc(CTL.FATIGUE[r.ressentiSeance.fatigue]):'')+'<br>':''}${r.bilan?'<b>Bilan :</b> '+esc(r.bilan):''}${r.suite?'<br><b>Suite :</b> '+esc(r.suite):''}${r.etoile?`<br><b>Étoile :</b> C${r.etoile.conception} P${r.etoile.production} A${r.etoile.analyse}${r.axePrioritaire?' · axe '+esc((GAREEPS.axes.find(a=>a.id===r.axePrioritaire)||{nom:r.axePrioritaire}).nom):''}`:''}</td></tr>`}).join('');
   const r9=R[8];const ctrl=r9?CTL.controleEpreuve((r9.wods||[]).map(w=>({f:w.format,special:w.special,reps:Math.min(...(w.exercices||[]).map(e=>e.reps||7)),ex:(w.exercices||[]).map(e=>({m:e.id}))})),mob,MOUV):[];
   return `<section class="carte"><h3>${esc(nomDe(k))}</h3><p class="small">Mobile : <b>${mob?esc(MOBILES[mob].nom)+' ('+MOBILES[mob].fc+')':'—'}</b> · âge ${esc(T.age||'—')} · FC de repos ${esc(T.fcRepos||'—')} · charge ${esc(T.charges||'—')} kg${T.pourquoi?'<br>Pourquoi : '+esc(T.pourquoi):''}</p>
     ${J?`<p class="small">Jour J : répartition <b>${esc(J.repartition||'—')}</b> · échauffement : ${esc((J.echauffement||[]).filter(Boolean).join(' / ')||'—')}</p>`:''}
@@ -224,7 +277,7 @@ function vExport(){
   return `<h2>Exporter</h2>
   ${DB.classe?`<section class="carte"><h3>Notes de ${esc(DB.classe)}</h3><div class="defile"><table class="tab"><tr><th>Élève</th><th>Produire /7</th><th>Analyser /5</th><th>AFL2</th><th>AFL3</th><th>Répartition</th><th>Total /20</th></tr>
     ${E.map(([k,n])=>{const t=totalNote(k);return `<tr><td>${esc(n)}</td><td>${t.p.toFixed(2)}</td><td>${t.a.toFixed(2)}</td><td>${t.c.toFixed(2)}</td><td>${t.r.toFixed(2)}</td><td>${repartition(k)}</td><td><b>${t.tot.toFixed(1)}</b>${t.complet?'':' <small class="muted">incomplet</small>'}</td></tr>`}).join('')}</table></div>
-    <div class="rangee"><button class="bt orange" type="button" data-act="csvnotes">Notes (CSV)</button><button class="bt" type="button" data-act="csvseances">Toutes les séances (CSV)</button></div></section>`:''}
+    <div class="rangee"><button class="bt orange" type="button" data-act="csvnotes">Notes (CSV)</button><button class="bt" type="button" data-act="csvseances">Toutes les séances (CSV)</button><button class="bt" type="button" data-act="pdf">🖨 Imprimer / PDF</button><button class="bt" type="button" data-act="json">{ } Séances (JSON)</button></div></section>`:''}
   <section class="carte"><h3>Sauvegarde</h3><div class="rangee"><button class="bt" type="button" data-act="sauvegarde">Télécharger une sauvegarde</button><label class="bt" for="restaure">Restaurer une sauvegarde</label><input id="restaure" type="file" accept=".json" hidden></div></section>
   <section class="carte"><h3>Fin d’année</h3><p class="small muted">Télécharge une sauvegarde complète, puis vide l’outil pour la rentrée.</p><button class="bt danger" type="button" data-act="archiver">Archiver l’année et repartir à zéro</button></section>`;
 }
@@ -236,10 +289,19 @@ const virg=x=>String(Math.round(x*100)/100).replace('.',',');
 function csvNotes(){const L=[['Classe','Élève','AFL1 produire /7','AFL1 analyser /5','AFL2','AFL3','Répartition','Total /20','Complet']];
   elevesClasse().forEach(([k,n])=>{const t=totalNote(k);L.push([DB.classe,n,virg(t.p),virg(t.a),virg(t.c),virg(t.r),repartition(k),virg(t.tot),t.complet?'oui':'non'])});
   telecharger('CT_notes_'+CTL.slug(DB.classe)+'_'+today()+'.csv',csv(L))}
-function csvSeances(){const L=[['Classe','Élève','Séance','Date','Mobile','Dispensé','WOD','Format de l’épreuve','Durée','Fait','Exercices (zone, niveau, répétitions, version)','Résultat','FC','Ressenti','Régulations','No rep','Bilan','Suite']];
+function csvSeances(){const L=[['Classe','Élève','Séance','Date','Mobile','Dispensé','WOD','Format de l’épreuve','Durée','Fait','Exercices (zone, niveau, répétitions, version)','Résultat','FC','Ressenti (commentaire)','Régulations','No rep','Bilan','Suite','Séance (étoiles)','Séance (fatigue)']];
   elevesClasse().forEach(([k,n])=>recsDe(k).forEach((r,i)=>{if(!r)return;const W=r.wods&&r.wods.length?r.wods:[null];
-    W.forEach(w=>{const D=w?CTL.decrireWod(w,MOUV):null;L.push([DB.classe,n,i+1,r.date,r.mobile,r.dispense?'oui':'',D?D.titre:'',D?D.format:'',D?(D.duree?CTL.mmss(D.duree):"sans limite"):'',w&&w.fait?'oui':'',D?D.ex.map(e=>e.nom+' ('+e.zone+' N'+(e.niveau||'?')+(e.reps?', '+e.reps+' rép.':'')+(e.version?(e.version<0?', −':', +'):'')+(e.note?', exéc. '+e.note+'/5':'')+')').join(' ; '):'',w?w.score||'':'',w?w.fc||'':'',w?w.ressenti||'':'',w?w.regulations||0:'',w?w.noRep||0:'',r.bilan,r.suite])})}));
+    W.forEach(w=>{const D=w?CTL.decrireWod(w,MOUV):null;L.push([DB.classe,n,i+1,r.date,r.mobile,r.dispense?'oui':'',D?D.titre:'',D?D.format:'',D?(D.duree?CTL.mmss(D.duree):"sans limite"):'',w&&w.fait?'oui':'',D?D.ex.map(e=>e.nom+' ('+e.zone+' N'+(e.niveau||'?')+(e.reps?', '+e.reps+' rép.':'')+(e.version?(e.version<0?', −':', +'):'')+(e.charge?', '+e.charge+' kg':'')+(e.note?', exéc. '+noteTxt(e.note,w):'')+')').join(' ; '):'',w?w.score||CTL.score({f:w.format,p:w.p,res:w.res,exercices:w.exercices||[]})||'':'',w?w.fc||'':'',w&&w.ressenti?CTL.ressentiTxt(w.ressenti,w.echelleRessenti||4)+(w.commentaire?' « '+w.commentaire+' »':''):'',w?w.regulations||0:'',w?w.noRep||0:'',r.bilan,r.suite,(r.ressentiSeance||{}).etoiles||'',(r.ressentiSeance||{}).fatigue?CTL.FATIGUE[r.ressentiSeance.fatigue]:''])})}));
   telecharger('CT_seances_'+CTL.slug(DB.classe)+'_'+today()+'.csv',csv(L))}
+
+function imprimer(){const E=elevesClasse();let a=$('#print-area');if(!a){a=document.createElement('div');a.id='print-area';document.body.appendChild(a)}
+  a.innerHTML=`<h2>Cross training · ${esc(DB.classe)} · ${new Date().toLocaleDateString('fr-FR')}</h2><table><tr><th>Élève</th><th>Séances reçues</th><th>Dernier WOD</th><th>Produire /7</th><th>Analyser /5</th><th>AFL2</th><th>AFL3</th><th>Total /20</th></tr>${E.map(([k,n])=>{const t=totalNote(k),R=recsDe(k).filter(Boolean),d=R[R.length-1],w=d&&(d.wods||[]).filter(x=>x.fait).pop();
+    return `<tr><td>${esc(n)}</td><td>${R.length}</td><td>${w?esc(CTL.decrireWod(w,MOUV).titre+' · '+(w.score||CTL.score({f:w.format,p:w.p,res:w.res,exercices:w.exercices||[]})||'')):'—'}</td><td>${virg(t.p)}</td><td>${virg(t.a)}</td><td>${virg(t.c)}</td><td>${virg(t.r)}</td><td><b>${virg(t.tot)}</b></td></tr>`}).join('')}</table>`;
+  window.print()}
+function jsonClasse(){const E=elevesClasse(),o=E.map(([k,n])=>({eleve:n,seances:recsDe(k).filter(Boolean)}));telecharger('CT_seances_'+CTL.slug(DB.classe)+'_'+today()+'.json',JSON.stringify(o,null,1),'application/json')}
+function csvAncien(){const L=[['Nom','Prénom','Classe','Coach','WOD n°','Mode','Durée (min)','Score','Niveau','Exercices et notes /4','Ressenti WOD','Commentaire WOD','Ressenti séance','Commentaire séance','Date']];
+  (DB.ancien||[]).forEach(o=>o.wods.forEach((w,i)=>L.push([o.nom,o.prenom,o.classe,o.coach,i+1,w.mode,w.duree,w.score,w.niveau,w.exos.map((e,j)=>e+(w.notes[j]?' '+w.notes[j]+'/4':'')).join(' | '),w.ressenti,w.commentaire,i===o.wods.length-1?o.ressentiSeance:'',i===o.wods.length-1?o.commentaire:'',o.date])));
+  telecharger('CT_ancienne_appli_'+today()+'.csv',csv(L))}
 
 /* ---------- Évènements ---------- */
 let IDX=0;
@@ -253,6 +315,12 @@ document.addEventListener('click',async ev=>{
     case 'qrdem':await qrDemarrage(v);return;
     case 'clsuppr':if(!confirm('Retirer la classe '+v+' ? Les séances reçues restent dans la sauvegarde.'))return;delete DB.classesL[v];DB.classe='';break;
     case 'scan':scanner();return;
+    case 'qrtxt':{try{const m=await lireTexte($('#qrtxt').value);journal(m);toast(m)}catch(e){toast(e.message);return}break}
+    case 'ancsuppr':if(!confirm('Supprimer cet élève de la liste de l’ancienne appli ?'))return;DB.ancien.splice(+v,1);break;
+    case 'anccsv':csvAncien();return;
+    case 'ancjson':telecharger('CT_ancienne_appli_'+today()+'.json',JSON.stringify(DB.ancien,null,1),'application/json');return;
+    case 'pdf':imprimer();return;
+    case 'json':jsonClasse();return;
     case 'fiche':DB.eleve=v;DB.tab='eleves';break;
     case 'versgrille':DB.eleve=v;DB.tab='epreuve';break;
     case 'rep':noteDe(DB.eleve).rep=v;break;
@@ -269,6 +337,7 @@ document.addEventListener('change',async ev=>{
   const t=ev.target;
   if(t.id==='cl-fic'&&t.files.length){await importerListe([...t.files],'',$('#cl-nom').value.trim());return}
   if(t.id==='fic'&&t.files.length){await importerFichiers([...t.files]);return}
+  if(t.id==='photoqr'&&t.files[0]){try{const m=await lirePhoto(t.files[0]);journal(m);sauver();rendre();toast(m)}catch(e){toast(e.message)}t.value='';return}
   if(t.id==='restaure'&&t.files[0]){try{const o=JSON.parse(await t.files[0].text());if(!o.classesL||!o.rec)throw 0;DB=Object.assign(vide(),o);sauver();rendre();toast('Sauvegarde restaurée.')}catch(e){toast('Ce fichier n’est pas une sauvegarde de l’outil prof.')}return}
   if(t.id==='selcl'){DB.classe=t.value;DB.eleve='';sauver();rendre();return}
   if(t.id==='selel'){DB.eleve=t.value;sauver();rendre();return}
@@ -276,4 +345,6 @@ document.addEventListener('change',async ev=>{
   if(t.dataset.n){const N=noteDe(DB.eleve),g=t.dataset.n,i=+t.dataset.i;
     N[g][i]=t.value===''?null:g==='r'?+t.value:DEG[+t.value];sauver();rendre();return}
 });
+// recherche dans l'appel et dans la liste de l'ancienne appli
+document.addEventListener('input',ev=>{const t=ev.target;if(t.id!=='filtre'&&t.id!=='filtreAnc')return;DB[t.id]=t.value;const pos=t.selectionStart;rendre();const n=$('#'+t.id);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}});
 rendre();
