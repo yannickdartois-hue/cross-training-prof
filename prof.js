@@ -114,7 +114,12 @@ function lireAncien(raw){
   return (i>=0?'Déjà reçu, remplacé (ancienne appli) : ':'Reçu (ancienne appli) : ')+o.prenom+' '+o.nom+' · '+wods.length+' WOD';
 }
 async function lireTexte(t){t=String(t||'').trim();
-  if(/^CTE[01]:/.test(t)){const q=await TTQR.decoder(t);if(q.t==='C')throw new Error('C’est un QR de classe, pas une séance.');return importerObjet(CTL.depuisQR(q),'qr')}
+  if(/^CTE[01]:/.test(t)){const q=await TTQR.decoder(t);if(q.t==='C')throw new Error('C’est un QR de classe, pas une séance.');
+    if(q.pt){// séance en plusieurs QR : on garde les parties jusqu'à la dernière
+      DB.parts=DB.parts||{};const k=[q.c,q.e,q.s,q.ts].join('|'),L=(DB.parts[k]=DB.parts[k]||[]).filter(p=>p.pt[0]!==q.pt[0]);L.push(q);DB.parts[k]=L;
+      const tout=CTL.recollerQR(L);if(!tout){const manque=[...Array(q.pt[1])].map((_,i)=>i+1).filter(i=>!L.some(p=>p.pt[0]===i));return 'Partie '+q.pt[0]+'/'+q.pt[1]+' reçue : '+q.e+' · séance '+q.s+' · il manque la partie '+manque.join(', ')}
+      delete DB.parts[k];return importerObjet(CTL.depuisQR(tout),'qr')+' ('+q.pt[1]+' QR)'}
+    return importerObjet(CTL.depuisQR(q),'qr')}
   if(/;/.test(t))return lireAncien(t);
   throw new Error('Ce QR code ne vient pas d’une appli cross training.')}
 async function lirePhoto(f){
@@ -165,12 +170,20 @@ function indices(k){
   const cr=k3=>{const L=WC.flatMap(w=>(w.exercices||[]).map(e=>e.criteres&&e.criteres[k3]).filter(x=>x===0||x===1));return L.length?`${k3} réussi : ${L.filter(x=>x).length}/${L.length} observations (${Math.round(100*L.filter(x=>x).length/L.length)} %)${WC===W?'':' sur le cycle'}`:'pas de critère observé'};
   I.p=[`échauffement écrit : ${ech}/4 étapes`,`FC dans la fourchette (${mob?MOBILES[mob].fc:'mobile ?'}) : ${fcok}/${W.length} WOD`,cr('placement')+` · ${exec} · no rep : ${nr}`,cr('amplitude'),cr('respiration'),ev&&ev.etirements?'étirements cochés':'étirements non cochés',`${W.length} WOD réalisés sur ${req} attendus${mob==='mod'?' (modéré : le degré 4 exige 3 cycles, impossible)':''}`];
   const TW=R.filter(Boolean).flatMap(r=>(r.wods||[]).filter(w=>w.fait)),dec=TW.filter(w=>w.regulation),coh=dec.filter(w=>{const d=CTL.fcDans(w.fc,mob),e=w.echelleRessenti===10?w.ressenti:null;return w.regulation==='baisse'?(d===1||e>=8):w.regulation==='monte'?(d===-1||(e&&e<=4)):w.regulation==='garde'?(d===0||d==null):true}).length;
-  I.a=[`${W.length} WOD avec données`,`FC notée : ${W.filter(w=>w.fc).length}/${W.length} · effort perçu : ${W.filter(w=>w.ressenti).length}/${W.length} · commentaire : ${W.filter(w=>w.commentaire).length}/${W.length}`,ev&&ev.tableau&&ev.tableau.pourquoi?'justification du mobile écrite':'pas de justification du mobile',ev&&ev.bilan?'bilan écrit':'pas de bilan',(ev&&ev.suite?'suite écrite':'pas de « prochaine fois »')+` · décisions de régulation : ${dec.length}/${TW.length} WOD, ${coh} cohérentes avec FC / effort`];
+  I.a=[`${W.length} WOD avec données`,`FC notée : ${W.filter(w=>w.fc).length}/${W.length} · effort perçu : ${W.filter(w=>w.ressenti).length}/${W.length} · commentaire : ${W.filter(w=>w.commentaire).length}/${W.length}`,ev&&ev.tableau&&ev.tableau.pourquoi?'justification du mobile écrite':'pas de justification du mobile',ev&&ev.bilan?'bilan écrit':'pas de bilan',(ev&&ev.suite?'suite écrite':'pas de « prochaine fois »')+` · décisions de régulation : ${dec.length}/${TW.length} WOD, ${coh} cohérentes avec FC / effort${(()=>{const S=TW.filter(w=>w.suiviDecision&&w.suiviDecision.resultat);return S.length?`, ${S.filter(w=>w.suiviDecision.resultat==='oui').length}/${S.length} appliquées au WOD suivant`:''})()}`];
   const T=derniereInfo(k,'tableau')||{},tp=[T.age,T.fcRepos,T.mobile,T.pourquoi].filter(Boolean).length;
   const avecW=R.filter(r=>r&&(r.wods||[]).length).length,avecB=R.filter(r=>r&&r.bilan&&r.suite).length,recus=R.filter(Boolean).length;
   I.c=[`tableau personnel : ${tp}/4 rubriques`,`WOD préparés : ${R.filter(r=>r&&(r.wods||[]).some(w=>!w.fait)).length} séances`,`séances avec WOD : ${avecW}/${recus}`,`bilan + suite : ${avecB}/${recus}`];
   const nb=x=>R.filter(r=>r&&r.roles&&r.roles[x]).length;
   const P=R.filter(r=>r&&r.preuvesRoles),pw=P.reduce((a,r)=>a+(r.preuvesRoles.wods||0),0),pc=P.reduce((a,r)=>a+(r.preuvesRoles.conseils||[]).length,0);
+  // Degrés proposés (1 à 4, null = pas assez de données) : une base à valider, jamais une note automatique
+  const pct=x=>x==null||isNaN(x)?null:x<.4?1:x<.6?2:x<.85?3:4,ratio=(a,b)=>b?a/b:null;
+  const crp=k3=>{const L=WC.flatMap(w=>(w.exercices||[]).map(e=>e.criteres&&e.criteres[k3]).filter(x=>x===0||x===1));return L.length?pct(L.filter(x=>x).length/L.length):null};
+  const suiv=TW.filter(w=>w.suiviDecision&&w.suiviDecision.resultat),app=suiv.filter(w=>w.suiviDecision.resultat==='oui').length;
+  I.pd=[derniereInfo(k,'jourJ')?[1,2,2,3,4][ech]:null,W.length?pct(fcok/W.length):null,crp('placement')||(NE.length?Math.max(1,Math.min(4,Math.round(NE.reduce((x,y)=>x+y,0)/NE.length))):null),crp('amplitude'),crp('respiration'),ev?(ev.etirements?4:1):null,ev?(W.length>=3?4:W.length>=req?3:W.length?2:1):null];
+  I.ad=[ev?pct(ratio(W.filter(w=>w.fc&&w.ressenti).length,W.length)||0):null,W.length?pct(W.filter(w=>w.fc&&w.ressenti&&w.commentaire).length/W.length):null,ev?(ev.tableau&&ev.tableau.pourquoi?3:1):null,ev?(ev.bilan&&ev.suite?3:ev.bilan||ev.suite?2:1):null,dec.length?pct((coh+app)/(dec.length+suiv.length)):null];
+  I.cd=[[1,2,2,3,4][tp],recus?[1,2,2,3,3,4][Math.min(5,R.filter(r=>r&&(r.wods||[]).some(w=>!w.fait)).length)]:null,recus?pct(avecW/recus):null,recus?pct(avecB/recus):null];
+  I.rd=recus?[Math.round(11*nb('supporter')/recus),Math.min(11,Math.round(11*Math.max(P.length,nb('assistant')*.5)/recus)),Math.min(11,Math.round(11*Math.min(1,pc/recus)))]:[null,null,null];
   I.r=[`coché « supporter » ${nb('supporter')}/${recus} séances`,`a tenu la tablette (compté, validé) : ${pw} WOD sur ${P.length} séances · coché « assistant » ${nb('assistant')}/${recus}`,`conseils écrits : ${pc}${pc?' (dernier : « '+((P[P.length-1].preuvesRoles.conseils||[]).slice(-1)[0]||'')+' »)':''} · coché « coach » ${nb('coach')}/${recus}`];
   return I;
 }
@@ -246,7 +259,8 @@ function vSurveiller(){
       if(am.length)A.push(['exec','placement raté : '+[...new Set(am)].join(', ')+' (risque de blessure)']);
       const dur=W.filter(w=>(w.echelleRessenti===10&&w.ressenti>=9)||(w.echelleRessenti===5&&w.ressenti===1));
       if(dur.length)A.push(['effort','effort maximal / épuisé sur '+dur.length+' WOD']);
-      if(W.length&&!W.some(w=>w.regulation)&&W.some(w=>w.echelleRessenti===10))A.push(['analyse','aucune décision de régulation']);}
+      if(W.length&&!W.some(w=>w.regulation)&&W.some(w=>w.echelleRessenti===10))A.push(['analyse','aucune décision de régulation']);
+      const na=W.filter(w=>w.suiviDecision&&w.suiviDecision.resultat==='non');if(na.length)A.push(['analyse','décision pas appliquée sur '+na.length+' WOD']);}
     if(A.length)lignes.push([n,k,A])});
   const cls={manque:'#b91c1c',fc:'#c2410c',exec:'#7c3aed',effort:'#0e7490',analyse:'#334155'};
   return `<h2>À surveiller · ${esc(DB.classe)} · séance ${der}</h2><p class="small muted">${E.length-lignes.length} élève${E.length-lignes.length>1?'s':''} sans alerte. Touche un nom pour sa fiche.</p>
@@ -279,7 +293,7 @@ function fiche(k){
     const W=r.wods||[];
     return `<tr><th>S${i+1}<br><small>${esc(r.date||'')}</small>${r.dispense?'<br><b>D</b>':''}</th><td>${W.map(w=>{const D=CTL.decrireWod(w,MOUV);return `${w.fait?'':'<i>prévu</i> '}<b>${esc(D.titre)}</b>${w.special?' · spécial':''}<br><small>${D.format&&D.format!==D.titre?esc(D.format)+' · ':''}${esc((D.duree?CTL.mmss(D.duree):"sans limite"))}${w.ordre==='h'?' · horizontal':''}${w.res&&w.res.arrete?' · arrêté à '+esc(CTL.mmss(w.res.arrete)):''}</small><ul class="exl">${D.ex.map(e=>`<li>${esc(e.nom)} <small>${esc(e.zone)} N${e.niveau||'?'}${e.reps?' · '+e.reps+' rép.':''}${e.version?(e.version<0?' · version −':' · version +'):''}${e.charge?' · '+e.charge+' kg':''}${e.note?' · <b>exéc. '+esc(noteTxt(e.note,w))+'</b>':''}${e.criteres?' · '+CTL.CRIT3.map(c=>(e.criteres[c]===1?'✓':e.criteres[c]===0?'✗':'?')+c.slice(0,4)+'.').join(' '):''}</small></li>`).join('')}</ul>`}).join('<hr>')||'—'}</td>
       <td>${W.filter(w=>w.fait).map(w=>esc(w.score||CTL.score({f:w.format,p:w.p,res:w.res,exercices:w.exercices||[]})||'')).join('<hr>')}</td><td>${W.filter(w=>w.fait).map(w=>pastFC(w.fc,r.mobile||mob)).join('<hr>')}</td>
-      <td>${W.filter(w=>w.fait).map(w=>esc(CTL.ressentiTxt(w.ressenti,w.echelleRessenti||4))+(w.dimensions?'<br><small>muscles '+(w.dimensions.mu||'—')+' · souffle '+(w.dimensions.so||'—')+' · tête '+(w.dimensions.te||'—')+'</small>':'')+(w.regulation?'<br><small>décision : <b>'+esc(CTL.REGLE[w.regulation]||w.regulation)+'</b></small>':'')+(w.coach?'<br><small>coach '+esc(w.coach)+(w.conseil?' : « '+esc(w.conseil)+' »':'')+'</small>':'')+(w.commentaire?'<br><small>« '+esc(w.commentaire)+' »</small>':'')+(w.regulations?' · '+w.regulations+' rég.':'')+(w.noRep?' · '+w.noRep+' NR':'')).join('<hr>')}</td>
+      <td>${W.filter(w=>w.fait).map(w=>esc(CTL.ressentiTxt(w.ressenti,w.echelleRessenti||4))+(w.dimensions?'<br><small>muscles '+(w.dimensions.mu||'—')+' · souffle '+(w.dimensions.so||'—')+' · tête '+(w.dimensions.te||'—')+'</small>':'')+(w.suiviDecision&&w.suiviDecision.resultat?'<br><small>décision d’avant « '+esc(CTL.REGLE[w.suiviDecision.decision]||w.suiviDecision.decision)+' » : '+(w.suiviDecision.resultat==='oui'?'✓ appliquée':'✗ pas appliquée')+'</small>':'')+(w.regulation?'<br><small>décision : <b>'+esc(CTL.REGLE[w.regulation]||w.regulation)+'</b></small>':'')+(w.coach?'<br><small>coach '+esc(w.coach)+(w.conseil?' : « '+esc(w.conseil)+' »':'')+'</small>':'')+(w.commentaire?'<br><small>« '+esc(w.commentaire)+' »</small>':'')+(w.regulations?' · '+w.regulations+' rég.':'')+(w.noRep?' · '+w.noRep+' NR':'')).join('<hr>')}</td>
       <td class="small">${r.preuvesRoles?'<b>Coach de</b> '+esc((r.preuvesRoles.pour||[]).join(', ')||'son partenaire')+' : '+r.preuvesRoles.wods+' WOD'+((r.preuvesRoles.conseils||[]).length?', conseils : « '+r.preuvesRoles.conseils.map(esc).join(' » « ')+' »':'')+'<br>':''}${r.ressentiSeance?'<b>Séance :</b> '+(r.ressentiSeance.etoiles?'★'.repeat(r.ressentiSeance.etoiles)+' ':'')+(r.ressentiSeance.fatigue?'fatigue '+esc(CTL.FATIGUE[r.ressentiSeance.fatigue]):'')+'<br>':''}${r.bilan?'<b>Bilan :</b> '+esc(r.bilan):''}${r.suite?'<br><b>Suite :</b> '+esc(r.suite):''}${r.etoile?`<br><b>Étoile :</b> C${r.etoile.conception} P${r.etoile.production} A${r.etoile.analyse}${r.axePrioritaire?' · axe '+esc((GAREEPS.axes.find(a=>a.id===r.axePrioritaire)||{nom:r.axePrioritaire}).nom):''}`:''}</td></tr>`}).join('');
   const r9=R[8];const ctrl=r9?CTL.controleEpreuve((r9.wods||[]).map(w=>({f:w.format,special:w.special,reps:Math.min(...(w.exercices||[]).map(e=>e.reps||7)),ex:(w.exercices||[]).map(e=>({m:e.id}))})),mob,MOUV):[];
   return `<section class="carte"><h3>${esc(nomDe(k))}</h3><p class="small">Mobile : <b>${mob?esc(MOBILES[mob].nom)+' ('+MOBILES[mob].fc+')':'—'}</b> · âge ${esc(T.age||'—')} · FC de repos ${esc(T.fcRepos||'—')} · charge ${esc(T.charges||'—')} kg${T.pourquoi?'<br>Pourquoi : '+esc(T.pourquoi):''}</p>
@@ -294,14 +308,16 @@ function vEpreuve(){
   const k=DB.eleve;if(!k)return '<p class="muted">Aucun élève.</p>';
   const N=noteDe(k),I=indices(k),t=totalNote(k);
   const sel=(grp,i,val)=>`<select data-n="${grp}" data-i="${i}"><option value="">—</option>${[0,1,2,3,4].map(d=>`<option value="${d}"${val!=null&&DEG.indexOf(val)===d?' selected':''}>${d?'Degré '+d+' · '+DEG[d]:'0'}</option>`).join('')}</select>`;
-  const blocDeg=(A,grp,ind)=>`<table class="tab grille"><tr><th>Élément</th><th>Note</th><th>Indice tiré du carnet</th></tr>${A.items.map((it,i)=>`<tr><td>${esc(it)}</td><td>${sel(grp,i,N[grp][i])}</td><td class="small muted">${esc(ind[i]||'')}</td></tr>`).join('')}</table>`;
+  const prop=(d,val,deg)=>d==null?'':`<small class="propose${val!=null&&(deg?DEG.indexOf(val):val)!==d?' ecart':''}">proposé : ${deg?'degré '+d:d+' (degré '+(Math.floor(d/3)+1)+')'}</small>`;
+  const blocDeg=(A,grp,ind,pd)=>`<table class="tab grille"><tr><th>Élément</th><th>Note</th><th>Indice tiré du carnet</th></tr>${A.items.map((it,i)=>`<tr><td>${esc(it)}</td><td>${sel(grp,i,N[grp][i])}${prop(pd[i],N[grp][i],true)}</td><td class="small muted">${esc(ind[i]||'')}</td></tr>`).join('')}</table>`;
   return `<h2>Épreuve · ${esc(DB.classe)}</h2><select id="selel" aria-label="Élève">${E.map(([kk,n])=>`<option value="${esc(kk)}"${kk===k?' selected':''}>${esc(n)}${totalNote(kk).complet?' ✓':''}</option>`).join('')}</select>
   <section class="carte total-note"><b>${esc(nomDe(k))}</b> · <span class="gros-chiffre">${t.tot.toFixed(1).replace('.',',')}</span> / 20 ${t.complet?'':'<span class="small muted">(incomplet)</span>'}<br><span class="small">AFL1 produire ${t.p.toFixed(2)}/7 · analyser ${t.a.toFixed(2)}/5 · AFL2 ${t.c.toFixed(2)}/${t.m2} · AFL3 ${t.r.toFixed(2)}/${t.m3}</span></section>
+  <section class="carte"><p class="small">Sous chaque note, un <b>degré proposé</b> d’après les indices du carnet. Il ne remplace pas ton observation : vérifie-le, puis valide.</p><button class="bt mini" type="button" data-act="proposer">Reprendre les degrés proposés (cases vides seulement)</button></section>
   <section class="carte"><h3>Répartition AFL2 / AFL3</h3><div class="rangee">${['6/2','4/4','2/6'].map(x=>`<button type="button" class="bt mini ${repartition(k)===x?'noir':''}" data-act="rep" data-v="${x}">${x}</button>`).join('')}<span class="small muted">${N.rep?'choisie ici':'choix de l’élève (Jour J) ou 4/4 par défaut'}</span></div></section>
-  <section class="carte"><h3>${esc(REF.afl1a.titre)}</h3>${blocDeg(REF.afl1a,'p',I.p)}</section>
-  <section class="carte"><h3>${esc(REF.afl1b.titre)}</h3>${blocDeg(REF.afl1b,'a',I.a)}</section>
-  <section class="carte"><h3>AFL2 · Le carnet (${t.m2} points, ${(t.m2/4).toString().replace('.',',')} par élément)</h3>${blocDeg(REF.afl2,'c',I.c)}</section>
-  <section class="carte"><h3>AFL3 · Rôles (${t.m3} points)</h3><table class="tab grille"><tr><th>Rôle</th><th>Niveau 0 à 11</th><th>Indice</th></tr>${REF.afl3.items.map((it,i)=>`<tr><td>${esc(it)}</td><td><select data-n="r" data-i="${i}"><option value="">—</option>${[...Array(12)].map((_,v)=>`<option value="${v}"${N.r[i]===v?' selected':''}>${v} · degré ${Math.floor(v/3)+1}</option>`).join('')}</select></td><td class="small muted">${esc(I.r[i])}</td></tr>`).join('')}</table>
+  <section class="carte"><h3>${esc(REF.afl1a.titre)}</h3>${blocDeg(REF.afl1a,'p',I.p,I.pd)}</section>
+  <section class="carte"><h3>${esc(REF.afl1b.titre)}</h3>${blocDeg(REF.afl1b,'a',I.a,I.ad)}</section>
+  <section class="carte"><h3>AFL2 · Le carnet (${t.m2} points, ${(t.m2/4).toString().replace('.',',')} par élément)</h3>${blocDeg(REF.afl2,'c',I.c,I.cd)}</section>
+  <section class="carte"><h3>AFL3 · Rôles (${t.m3} points)</h3><table class="tab grille"><tr><th>Rôle</th><th>Niveau 0 à 11</th><th>Indice</th></tr>${REF.afl3.items.map((it,i)=>`<tr><td>${esc(it)}</td><td><select data-n="r" data-i="${i}"><option value="">—</option>${[...Array(12)].map((_,v)=>`<option value="${v}"${N.r[i]===v?' selected':''}>${v} · degré ${Math.floor(v/3)+1}</option>`).join('')}</select>${prop(I.rd[i],N.r[i],false)}</td><td class="small muted">${esc(I.r[i])}</td></tr>`).join('')}</table>
     <p class="small muted">${esc(REF.afl3.note)} 0-2 = degré 1, 3-5 = degré 2, 6-8 = degré 3, 9-11 = degré 4.</p></section>
   <div class="rangee"><button class="bt" type="button" data-act="elprec">← Élève précédent</button><button class="bt noir" type="button" data-act="elsuiv">Élève suivant →</button></div>
   <details class="carte"><summary>Degrés du référentiel</summary>${[REF.afl1a,REF.afl1b].map(A=>`<p><b>${esc(A.titre)}</b></p><ol class="small">${A.degres.map(d=>`<li>${esc(d[0])} <b>${esc(d[1])}</b></li>`).join('')}</ol>`).join('')}<p><b>${esc(REF.afl2.titre)}</b></p><ol class="small">${REF.afl2.degres.map(d=>`<li>${esc(d)}</li>`).join('')}</ol><p><b>${esc(REF.afl3.titre)}</b></p><ol class="small">${REF.afl3.degres.map(d=>`<li>${esc(d)}</li>`).join('')}</ol></details>`;
@@ -365,6 +381,10 @@ document.addEventListener('click',async ev=>{
     case 'qrdem':await qrDemarrage(v);return;
     case 'clsuppr':if(!confirm('Retirer la classe '+v+' ? Les séances reçues restent dans la sauvegarde.'))return;delete DB.classesL[v];DB.classe='';break;
     case 'demo':creerDemo();toast('Classe DEMO créée : regarde Appel, Élèves, Épreuve.');break;
+    case 'proposer':{const I=indices(DB.eleve),N=noteDe(DB.eleve);let n=0;
+      [['p',I.pd],['a',I.ad],['c',I.cd]].forEach(([g,L])=>L.forEach((d,i)=>{if(N[g][i]==null&&d!=null){N[g][i]=DEG[d];n++}}));
+      I.rd.forEach((d,i)=>{if(N.r[i]==null&&d!=null){N.r[i]=d;n++}});
+      toast(n?n+' degré'+(n>1?'s':'')+' repris : vérifie-les.':'Rien à reprendre (cases déjà remplies ou pas de données).');break}
     case 'scan':scanner();return;
     case 'qrtxt':{try{const m=await lireTexte($('#qrtxt').value);journal(m);toast(m)}catch(e){toast(e.message);return}break}
     case 'ancsuppr':if(!confirm('Supprimer cet élève de la liste de l’ancienne appli ?'))return;DB.ancien.splice(+v,1);break;

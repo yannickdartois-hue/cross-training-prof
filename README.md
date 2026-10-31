@@ -10,3 +10,7 @@ Outil prof du cycle de cross training (lycée Georges Pompidou), à utiliser ave
 - **Exporter** : notes et séances en CSV (Excel), sauvegarde, archivage de l'année.
 
 Données gardées sur l'appareil du prof (localStorage). Bibliothèques : SheetJS (Apache 2.0), JSZip (MIT), qrcode-generator et jsQR (MIT).
+
+## Tests
+
+Scripts dans `tests/` (Node + Playwright), à relancer avant chaque mise en ligne : voir `tests/README.md`.

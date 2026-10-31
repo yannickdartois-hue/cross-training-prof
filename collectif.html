@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#c2410c">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-32.png">
+<title>Chrono classe · Cross training</title>
+<script>try{if(localStorage.getItem('eps_theme')==='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script>
+<style>
+@font-face{font-family:"Archivo";src:url(polices/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:"Atkinson";src:url(polices/atkinson-400.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Atkinson";src:url(polices/atkinson-700.woff2) format("woff2");font-weight:700;font-display:swap}
+:root{--sol:#F3F5F8;--craie:#FFFFFF;--encre:#172033;--repere:#5A6475;--trait:#DDE2E8;--sur-encre:#FFFFFF;--ligne:#C2410C;--vert:#1D6B3A;--alerte:#B42318;
+  --effort:#1D6B3A;--repos:#B42318;--d:"Archivo","Arial Narrow",Arial,sans-serif;--t:"Atkinson","Segoe UI",Roboto,Arial,sans-serif}
+:root[data-theme="dark"]{--sol:#0d1117;--craie:#161b22;--encre:#e6edf3;--repere:#8b949e;--trait:#2a313b;--sur-encre:#0d1117;--ligne:#FB923C;--vert:#6FD39F;--alerte:#FF8A80;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--sol);color:var(--encre);font:18px/1.4 var(--t)}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--ligne);outline-offset:2px}
+[hidden]{display:none!important}
+.barre{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--craie);border-bottom:8px solid var(--ligne)}
+.barre b{font:800 22px/1.1 var(--d);font-stretch:78%;flex:1}
+.bt{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:56px;padding:0 18px;border-radius:12px;font:700 18px var(--t);border:2px solid var(--encre);background:var(--craie);color:var(--encre);text-decoration:none}
+.bt.noir{background:var(--encre);color:var(--sur-encre)}.bt.orange{background:#c2410c;border-color:#c2410c;color:#fff}.bt.mini{min-height:48px;padding:0 14px;font-size:16px}
+main{max-width:900px;margin:0 auto;padding:12px 16px 40px}
+.carte{background:var(--craie);border:1px solid var(--trait);border-radius:16px;padding:16px;margin:12px 0}
+h2{font:800 30px/1.05 var(--d);font-stretch:74%;margin:8px 0}
+h3{font:800 22px/1.1 var(--d);font-stretch:78%;margin:0 0 8px}
+.rangee{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.choix button{min-height:52px;padding:0 16px;border-radius:12px;border:2px solid var(--trait);background:var(--craie);font-weight:700}
+.choix button.on{border-color:var(--encre);background:var(--encre);color:var(--sur-encre)}
+.num{width:90px;min-height:52px;border-radius:12px;border:2px solid var(--trait);background:var(--craie);padding:0 10px;text-align:center}
+select{min-height:52px;border-radius:12px;border:2px solid var(--trait);background:var(--craie);padding:0 10px;max-width:100%}
+.ex{display:grid;grid-template-columns:1fr 100px;gap:8px;margin:6px 0}
+.small{font-size:15px}.muted{color:var(--repere)}
+/* Écran projeté */
+#ecran{position:fixed;inset:0;background:var(--sol);display:flex;flex-direction:column;z-index:10}
+#ecran.effort{background:var(--effort);color:#fff}#ecran.repos{background:var(--repos);color:#fff}
+#ecran .haut{display:flex;justify-content:space-between;align-items:center;padding:2vh 3vw;font:800 4.5vh/1 var(--d);font-stretch:78%;text-transform:uppercase;letter-spacing:.03em}
+#ecran .temps{font:800 34vh/0.9 var(--d);font-stretch:70%;text-align:center;font-variant-numeric:tabular-nums}
+#ecran .exo{display:flex;align-items:center;justify-content:center;gap:3vw;padding:0 3vw;flex:1;min-height:0}
+#ecran .exo img{max-height:28vh;max-width:30vw;border-radius:16px;background:#fff}
+#ecran .exo .nom{font:800 9vh/1 var(--d);font-stretch:74%;text-align:center}
+#ecran .exo .reps{display:block;font-size:5.5vh;opacity:.9}
+#ecran .liste{font:700 4.6vh/1.25 var(--t);text-align:center}
+#ecran .apres{text-align:center;font:700 3.6vh/1.2 var(--t);opacity:.9;padding-bottom:1vh}
+#ecran .bas{display:flex;gap:10px;justify-content:center;padding:1.5vh;flex-wrap:wrap}
+#ecran.effort .bt,#ecran.repos .bt{background:rgba(255,255,255,.15);border-color:#fff;color:#fff}
+</style>
+<style>@media print{:root{--fs-min:0px}}</style>
+</head>
+<body>
+<div class="barre"><b>Chrono classe · vidéoprojecteur</b><button class="bt mini" type="button" id="theme" aria-label="Thème clair ou sombre">🌙</button><a class="bt mini" href="index.html">← Outil prof</a></div>
+<main id="reglage"></main>
+<div id="ecran" hidden></div>
+<script src="donnees.js"></script>
+<script src="logique.js"></script>
+<script src="collectif.js"></script>
+</body>
+</html>

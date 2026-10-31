@@ -314,6 +314,7 @@ html.chrono-ouvert,html.chrono-ouvert body{overflow:hidden}
 .total-note{border-left:6px solid var(--ligne)}.gros-chiffre{font:800 40px/1 var(--d)}
 .qr-plein{position:fixed;inset:0;z-index:60;background:#fff;display:grid;place-items:center;text-align:center;padding:16px;color:#172033;overflow:auto}.qr-plein h2{margin:0}.qr-plein p{margin:4px 0}
 .qr-plein .qrbox svg{width:min(64vh,90vw);height:auto}
+.propose{display:block;font-size:13px;color:var(--repere);margin-top:3px}.propose.ecart{color:var(--alerte,#b91c1c);font-weight:700}
 .alerte-pt{display:inline-block;border:1.5px solid;border-radius:10px;padding:2px 8px;margin:2px;font-weight:700;font-size:max(14px,var(--fs-min,15px))}
 </style>
 <style>#print-area{display:none}@media print{body>*:not(#print-area){display:none!important}#print-area{display:block;color:#000;font:11pt Arial,sans-serif}#print-area table{border-collapse:collapse;width:100%}#print-area td,#print-area th{border:1px solid #999;padding:3px;text-align:left}}</style>
@@ -323,7 +324,7 @@ html.chrono-ouvert,html.chrono-ouvert body{overflow:hidden}
 </head>
 <body>
 <header>
-  <div class="barre"><img src="icon-192.png" alt=""><div class="app">Cross training · Prof<small>Lycée Pompidou · données gardées sur cet appareil</small></div><button type="button" class="bt mini baide" onclick="EPSAide.ouvrir()" aria-label="Mode d’emploi" title="Mode d’emploi">?</button></div>
+  <div class="barre"><img src="icon-192.png" alt=""><div class="app">Cross training · Prof<small>Lycée Pompidou · données gardées sur cet appareil</small></div><a class="bt mini" href="collectif.html" title="Chrono de classe pour le vidéoprojecteur">⏱ Chrono classe</a><button type="button" class="bt mini baide" onclick="EPSAide.ouvrir()" aria-label="Mode d’emploi" title="Mode d’emploi">?</button></div>
   <div class="trace"></div>
   <div class="classe-barre" id="classe"></div>
 </header>
