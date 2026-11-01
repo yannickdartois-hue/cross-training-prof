@@ -27,6 +27,8 @@ let ok=0,ko=0;const verif=(c,t)=>{if(c){ok++;console.log('  ✓ '+t)}else{ko++;c
  await p.clock.runFor(21000);verif(/Repos/i.test(await p.textContent('#ecran .haut')),'repos après 20 s');
  await p.clock.runFor(300000);verif(/Terminé/.test(await p.textContent('#ecran .haut')),'fin du WOD');
  await p.click('[data-a=stop]');verif(await p.$eval('#ecran',e=>e.hidden),'écran fermé');
+ await p.click('[data-a=go]');await p.clock.runFor(15000);await p.click('[data-a=stop]');await p.clock.runFor(500);verif(!await p.$eval('#ecran',e=>e.hidden)&&/Sûr/.test(await p.textContent('[data-a=stop]')),'« Arrêter » pendant le WOD demande confirmation (et le bouton n’est pas redessiné entre-temps)');
+ await p.click('[data-a=stop]');verif(await p.$eval('#ecran',e=>e.hidden),'2e appui : arrêté');
  await p.click('[data-a=f][data-v=emom]');const pe=await p.evaluate(()=>CTC.plan().length);verif(pe===9,'EMOM 8 min : 8 minutes après le décompte');
  }catch(e){ko++;console.log('ERREUR '+e.message.split('\n')[0])}
  verif(!errs.length,'aucune erreur JavaScript'+(errs.length?' : '+errs.join(' | '):''));
