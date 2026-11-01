@@ -116,7 +116,7 @@ function lireAncien(raw){
 async function lireTexte(t){t=String(t||'').trim();
   if(/^CTE[01]:/.test(t)){const q=await TTQR.decoder(t);if(q.t==='C')throw new Error('C’est un QR de classe, pas une séance.');
     if(q.pt){// séance en plusieurs QR : on garde les parties jusqu'à la dernière
-      DB.parts=DB.parts||{};const k=[q.c,q.e,q.s,q.ts].join('|'),L=(DB.parts[k]=DB.parts[k]||[]).filter(p=>p.pt[0]!==q.pt[0]);L.push(q);DB.parts[k]=L;
+      DB.parts=DB.parts||{};const pre=[q.c,q.e,q.s].join('|')+'|';const autres=Object.keys(DB.parts).filter(x=>x.startsWith(pre)&&x!==pre+q.ts);if(autres.some(x=>+x.slice(pre.length)>q.ts))return 'QR plus ancien que les parties déjà lues pour '+q.e+' · séance '+q.s+' : scanne les QR affichés en ce moment.';autres.forEach(x=>delete DB.parts[x]);const k=pre+q.ts,L=(DB.parts[k]=DB.parts[k]||[]).filter(p=>p.pt[0]!==q.pt[0]);L.push(q);DB.parts[k]=L;
       const tout=CTL.recollerQR(L);if(!tout){const manque=[...Array(q.pt[1])].map((_,i)=>i+1).filter(i=>!L.some(p=>p.pt[0]===i));return 'Partie '+q.pt[0]+'/'+q.pt[1]+' reçue : '+q.e+' · séance '+q.s+' · il manque la partie '+manque.join(', ')}
       delete DB.parts[k];return importerObjet(CTL.depuisQR(tout),'qr')+' ('+q.pt[1]+' QR)'}
     return importerObjet(CTL.depuisQR(q),'qr')}
@@ -295,7 +295,7 @@ function fiche(k){
       <td>${W.filter(w=>w.fait).map(w=>esc(w.score||CTL.score({f:w.format,p:w.p,res:w.res,exercices:w.exercices||[]})||'')).join('<hr>')}</td><td>${W.filter(w=>w.fait).map(w=>pastFC(w.fc,r.mobile||mob)).join('<hr>')}</td>
       <td>${W.filter(w=>w.fait).map(w=>esc(CTL.ressentiTxt(w.ressenti,w.echelleRessenti||4))+(w.dimensions?'<br><small>muscles '+(w.dimensions.mu||'—')+' · souffle '+(w.dimensions.so||'—')+' · tête '+(w.dimensions.te||'—')+'</small>':'')+(w.suiviDecision&&w.suiviDecision.resultat?'<br><small>décision d’avant « '+esc(CTL.REGLE[w.suiviDecision.decision]||w.suiviDecision.decision)+' » : '+(w.suiviDecision.resultat==='oui'?'✓ appliquée':'✗ pas appliquée')+'</small>':'')+(w.regulation?'<br><small>décision : <b>'+esc(CTL.REGLE[w.regulation]||w.regulation)+'</b></small>':'')+(w.coach?'<br><small>coach '+esc(w.coach)+(w.conseil?' : « '+esc(w.conseil)+' »':'')+'</small>':'')+(w.commentaire?'<br><small>« '+esc(w.commentaire)+' »</small>':'')+(w.regulations?' · '+w.regulations+' rég.':'')+(w.noRep?' · '+w.noRep+' NR':'')).join('<hr>')}</td>
       <td class="small">${r.preuvesRoles?'<b>Coach de</b> '+esc((r.preuvesRoles.pour||[]).join(', ')||'son partenaire')+' : '+r.preuvesRoles.wods+' WOD'+((r.preuvesRoles.conseils||[]).length?', conseils : « '+r.preuvesRoles.conseils.map(esc).join(' » « ')+' »':'')+'<br>':''}${r.ressentiSeance?'<b>Séance :</b> '+(r.ressentiSeance.etoiles?'★'.repeat(r.ressentiSeance.etoiles)+' ':'')+(r.ressentiSeance.fatigue?'fatigue '+esc(CTL.FATIGUE[r.ressentiSeance.fatigue]):'')+'<br>':''}${r.bilan?'<b>Bilan :</b> '+esc(r.bilan):''}${r.suite?'<br><b>Suite :</b> '+esc(r.suite):''}${r.etoile?`<br><b>Étoile :</b> C${r.etoile.conception} P${r.etoile.production} A${r.etoile.analyse}${r.axePrioritaire?' · axe '+esc((GAREEPS.axes.find(a=>a.id===r.axePrioritaire)||{nom:r.axePrioritaire}).nom):''}`:''}</td></tr>`}).join('');
-  const r9=R[8];const ctrl=r9?CTL.controleEpreuve((r9.wods||[]).map(w=>({f:w.format,special:w.special,reps:Math.min(...(w.exercices||[]).map(e=>e.reps||7)),ex:(w.exercices||[]).map(e=>({m:e.id}))})),mob,MOUV):[];
+  const r9=R[8];const ctrl=r9?CTL.controleEpreuve((r9.wods||[]).map(w=>({f:w.format,special:w.special,ex:(w.exercices||[]).map(e=>({m:e.id,reps:e.reps||0}))})),mob,MOUV):[];
   return `<section class="carte"><h3>${esc(nomDe(k))}</h3><p class="small">Mobile : <b>${mob?esc(MOBILES[mob].nom)+' ('+MOBILES[mob].fc+')':'—'}</b> · âge ${esc(T.age||'—')} · FC de repos ${esc(T.fcRepos||'—')} · charge ${esc(T.charges||'—')} kg${T.pourquoi?'<br>Pourquoi : '+esc(T.pourquoi):''}</p>
     ${J?`<p class="small">Jour J : répartition <b>${esc(J.repartition||'—')}</b> · échauffement : ${esc((J.echauffement||[]).filter(Boolean).join(' / ')||'—')}</p>`:''}
     ${ctrl.length?`<ul class="ctrl small">${ctrl.map(c=>`<li class="${c[0]?'ok':'ko'}">${c[0]?'✓':'✗'} ${esc(c[1])}</li>`).join('')}</ul>`:''}</section>
@@ -339,9 +339,9 @@ const virg=x=>String(Math.round(x*100)/100).replace('.',',');
 function csvNotes(){const L=[['Classe','Élève','AFL1 produire /7','AFL1 analyser /5','AFL2','AFL3','Répartition','Total /20','Complet']];
   elevesClasse().forEach(([k,n])=>{const t=totalNote(k);L.push([DB.classe,n,virg(t.p),virg(t.a),virg(t.c),virg(t.r),repartition(k),virg(t.tot),t.complet?'oui':'non'])});
   telecharger('CT_notes_'+CTL.slug(DB.classe)+'_'+today()+'.csv',csv(L))}
-function csvSeances(){const L=[['Classe','Élève','Séance','Date','Mobile','Dispensé','WOD','Format de l’épreuve','Durée','Fait','Exercices (zone, niveau, répétitions, version)','Résultat','FC','Effort / ressenti (commentaire)','Décision de régulation','Coach et conseil','Régulations','No rep','Bilan','Suite','Séance (étoiles)','Séance (fatigue)']];
+function csvSeances(){const L=[['Classe','Élève','Séance','Date','Mobile','Dispensé','WOD','Format de l’épreuve','Durée','Fait','Exercices (zone, niveau, répétitions, version)','Résultat','FC','Effort / ressenti (commentaire)','Décision de régulation','Décision d’avant appliquée','Coach et conseil','Régulations','No rep','Bilan','Suite','Séance (étoiles)','Séance (fatigue)']];
   elevesClasse().forEach(([k,n])=>recsDe(k).forEach((r,i)=>{if(!r)return;const W=r.wods&&r.wods.length?r.wods:[null];
-    W.forEach(w=>{const D=w?CTL.decrireWod(w,MOUV):null;L.push([DB.classe,n,i+1,r.date,r.mobile,r.dispense?'oui':'',D?D.titre:'',D?D.format:'',D?(D.duree?CTL.mmss(D.duree):"sans limite"):'',w&&w.fait?'oui':'',D?D.ex.map(e=>e.nom+' ('+e.zone+' N'+(e.niveau||'?')+(e.reps?', '+e.reps+' rép.':'')+(e.version?(e.version<0?', −':', +'):'')+(e.charge?', '+e.charge+' kg':'')+(e.note?', exéc. '+noteTxt(e.note,w):'')+(e.criteres?', '+CTL.CRIT3.map(c=>c+' '+(e.criteres[c]===1?'✓':e.criteres[c]===0?'✗':'?')).join(' '):'')+')').join(' ; '):'',w?w.score||CTL.score({f:w.format,p:w.p,res:w.res,exercices:w.exercices||[]})||'':'',w?w.fc||'':'',w&&w.ressenti?CTL.ressentiTxt(w.ressenti,w.echelleRessenti||4)+(w.commentaire?' « '+w.commentaire+' »':''):'',w&&w.regulation?CTL.REGLE[w.regulation]||w.regulation:'',w&&w.coach?w.coach+(w.conseil?' : '+w.conseil:''):'',w?w.regulations||0:'',w?w.noRep||0:'',r.bilan,r.suite,(r.ressentiSeance||{}).etoiles||'',(r.ressentiSeance||{}).fatigue?CTL.FATIGUE[r.ressentiSeance.fatigue]:''])})}));
+    W.forEach(w=>{const D=w?CTL.decrireWod(w,MOUV):null;L.push([DB.classe,n,i+1,r.date,r.mobile,r.dispense?'oui':'',D?D.titre:'',D?D.format:'',D?(D.duree?CTL.mmss(D.duree):"sans limite"):'',w&&w.fait?'oui':'',D?D.ex.map(e=>e.nom+' ('+e.zone+' N'+(e.niveau||'?')+(e.reps?', '+e.reps+' rép.':'')+(e.version?(e.version<0?', −':', +'):'')+(e.charge?', '+e.charge+' kg':'')+(e.note?', exéc. '+noteTxt(e.note,w):'')+(e.criteres?', '+CTL.CRIT3.map(c=>c+' '+(e.criteres[c]===1?'✓':e.criteres[c]===0?'✗':'?')).join(' '):'')+')').join(' ; '):'',w?w.score||CTL.score({f:w.format,p:w.p,res:w.res,exercices:w.exercices||[]})||'':'',w?w.fc||'':'',w&&w.ressenti?CTL.ressentiTxt(w.ressenti,w.echelleRessenti||4)+(w.commentaire?' « '+w.commentaire+' »':''):'',w&&w.regulation?CTL.REGLE[w.regulation]||w.regulation:'',w&&w.suiviDecision&&w.suiviDecision.resultat?(w.suiviDecision.resultat==='oui'?'oui':'non')+' ('+(CTL.REGLE[w.suiviDecision.decision]||w.suiviDecision.decision)+')':'',w&&w.coach?w.coach+(w.conseil?' : '+w.conseil:''):'',w?w.regulations||0:'',w?w.noRep||0:'',r.bilan,r.suite,(r.ressentiSeance||{}).etoiles||'',(r.ressentiSeance||{}).fatigue?CTL.FATIGUE[r.ressentiSeance.fatigue]:''])})}));
   telecharger('CT_seances_'+CTL.slug(DB.classe)+'_'+today()+'.csv',csv(L))}
 
 function imprimer(){const E=elevesClasse();let a=$('#print-area');if(!a){a=document.createElement('div');a.id='print-area';document.body.appendChild(a)}
@@ -381,7 +381,7 @@ document.addEventListener('click',async ev=>{
     case 'qrdem':await qrDemarrage(v);return;
     case 'clsuppr':if(!confirm('Retirer la classe '+v+' ? Les séances reçues restent dans la sauvegarde.'))return;delete DB.classesL[v];DB.classe='';break;
     case 'demo':creerDemo();toast('Classe DEMO créée : regarde Appel, Élèves, Épreuve.');break;
-    case 'proposer':{const I=indices(DB.eleve),N=noteDe(DB.eleve);let n=0;
+    case 'proposer':{if(!DB.eleve)return;const I=indices(DB.eleve),N=noteDe(DB.eleve);let n=0;
       [['p',I.pd],['a',I.ad],['c',I.cd]].forEach(([g,L])=>L.forEach((d,i)=>{if(N[g][i]==null&&d!=null){N[g][i]=DEG[d];n++}}));
       I.rd.forEach((d,i)=>{if(N.r[i]==null&&d!=null){N.r[i]=d;n++}});
       toast(n?n+' degré'+(n>1?'s':'')+' repris : vérifie-les.':'Rien à reprendre (cases déjà remplies ou pas de données).');break}
@@ -395,7 +395,7 @@ document.addEventListener('click',async ev=>{
     case 'fiche':DB.eleve=v;DB.tab='eleves';break;
     case 'versgrille':DB.eleve=v;DB.tab='epreuve';break;
     case 'rep':noteDe(DB.eleve).rep=v;break;
-    case 'elprec':case 'elsuiv':{const E=elevesClasse(),i=E.findIndex(([k])=>k===DB.eleve);const j=Math.max(0,Math.min(E.length-1,i+(a==='elsuiv'?1:-1)));DB.eleve=E[j][0];window.scrollTo(0,0);break}
+    case 'elprec':case 'elsuiv':{const E=elevesClasse(),i=E.findIndex(([k])=>k===DB.eleve);if(!E.length)return;const j=Math.max(0,Math.min(E.length-1,i+(a==='elsuiv'?1:-1)));DB.eleve=E[j][0];window.scrollTo(0,0);break}
     case 'csvnotes':csvNotes();return;
     case 'csvseances':csvSeances();return;
     case 'sauvegarde':telecharger('CT_prof_sauvegarde_'+today()+'.json',JSON.stringify(DB),'application/json');return;
@@ -406,10 +406,10 @@ document.addEventListener('click',async ev=>{
 });
 document.addEventListener('change',async ev=>{
   const t=ev.target;
-  if(t.id==='cl-fic'&&t.files.length){await importerListe([...t.files],'',$('#cl-nom').value.trim());return}
-  if(t.id==='fic'&&t.files.length){await importerFichiers([...t.files]);return}
+  if(t.id==='cl-fic'&&t.files.length){const F=[...t.files];t.value='';await importerListe(F,'',$('#cl-nom').value.trim());return}
+  if(t.id==='fic'&&t.files.length){const F=[...t.files];t.value='';await importerFichiers(F);return}
   if(t.id==='photoqr'&&t.files[0]){try{const m=await lirePhoto(t.files[0]);journal(m);sauver();rendre();toast(m)}catch(e){toast(e.message)}t.value='';return}
-  if(t.id==='restaure'&&t.files[0]){try{const o=JSON.parse(await t.files[0].text());if(!o.classesL||!o.rec)throw 0;DB=Object.assign(vide(),o);sauver();rendre();toast('Sauvegarde restaurée.')}catch(e){toast('Ce fichier n’est pas une sauvegarde de l’outil prof.')}return}
+  if(t.id==='restaure'&&t.files[0]){try{const o=JSON.parse(await t.files[0].text());if(!o.classesL||!o.rec)throw 0;DB=Object.assign(vide(),o);sauver();rendre();toast('Sauvegarde restaurée.')}catch(e){toast('Ce fichier n’est pas une sauvegarde de l’outil prof.')}t.value='';return}
   if(t.id==='selcl'){DB.classe=t.value;DB.eleve='';sauver();rendre();return}
   if(t.id==='selel'){DB.eleve=t.value;sauver();rendre();return}
   if(t.classList.contains('cl-lien')){DB.classesL[t.dataset.c].lien=t.value.trim();sauver();toast('Lien enregistré : affiche le nouveau QR de démarrage.');return}

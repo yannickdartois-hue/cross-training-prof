@@ -20,6 +20,13 @@ let ok=0,ko=0;const verif=(c,t)=>{if(c){ok++;console.log('  ✓ '+t)}else{ko++;c
  const [vides,tot]=await p.$$eval('.grille select',x=>[x.filter(s=>s.value==='').length,x.length]);verif(vides===tot-nP,'chaque degré proposé repris ('+vides+' cases restées vides : pas de données du jour J dans la démo)');
  await p.selectOption('.grille select >> nth=0','1');await p.waitForTimeout(100);
  verif(await p.$$eval('.grille select',x=>x[0].value)==='1','une note modifiée à la main est gardée');
+ console.log('Fiche : contrôle du jour J');
+ const ok7=await p.evaluate(()=>{importerObjet({app:'cross-training-eleves',classe:'DEMO',eleve:'Alice DÉMO',seance:9,ts:1790009999,mobile:'mod',wods:[{format:'emom',p:{min:8},preset:'em8',exercices:[{id:'squat',reps:8},{id:'crunch',reps:8},{id:'pompe',reps:8}]},{format:'tabata',p:{e:30,r:30,n:8},preset:'tm1',exercices:[{id:'planche'},{id:'jumping-jack'},{id:'fente-avant'},{id:'burpee'}]}]},'test');DB.eleve=cleEleve('DEMO','Alice DÉMO');DB.tab='eleves';rendre();return [...document.querySelectorAll('.ctrl li')].map(l=>l.className+' '+l.textContent)});
+ verif(ok7.some(t=>/^ok .*7 répétitions/.test(t)),'EMOM à 8 répétitions : règle des 7 répétitions validée dans la fiche');
+ console.log('QR en plusieurs parties : parties périmées');
+ const per=await p.evaluate(async()=>{const mk=(ts,i,n)=>TTQR.encoder({a:'CTE',v:1,c:'DEMO',e:'Bruno DÉMO',s:4,ts,pt:[i,n],w:[]});
+  const a=await lireTexte(await mk(200,1,2));const b=await lireTexte(await mk(100,2,2));return [a,b]});
+ verif(/il manque/.test(per[0])&&/plus ancien/.test(per[1]),'une partie d’un QR plus ancien est refusée');
  console.log('Chrono classe');
  await p.goto('http://localhost:8783/collectif.html');await p.clock.install();await p.waitForTimeout(200);
  const pl=await p.evaluate(()=>CTC.plan().map(x=>x.typ+x.d));verif(pl.length===16&&pl[1]==='effort20'&&pl[2]==='repos10','Tabata 20/10 × 8 : 8 efforts, 7 repos');
