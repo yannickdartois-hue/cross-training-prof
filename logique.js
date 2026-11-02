@@ -14,13 +14,13 @@ const NOM_NIV={p:'Première',t:'Terminale'},NOM_DEM={p:'progressive',g:'GAREEPS'
 /* ---------- Formats et réglages tout prêts (référentiel du lycée) ---------- */
 // f : tabata | emom | amrap | fortime | emom1 ; p : paramètres ; nb : nombre d'exercices conseillé ; mob : mobile ; ep : format de l'épreuve
 const PRESETS=[
- {id:'tm1',nom:'TABATA modéré N1',f:'tabata',p:{e:30,r:30,n:8},nb:4,ordre:'v',mob:'mod',ep:1,aide:'2 × 4 exercices, 3 N2 + 1 N1 · 8 min'},
- {id:'tm2',nom:'TABATA modéré N2',f:'tabata',p:{e:30,r:20,n:10},nb:5,ordre:'v',mob:'mod',ep:1,aide:'2 × 5 exercices, 3 N2 + 2 N1 · 8 min 20'},
- {id:'tm3',nom:'TABATA modéré N3',f:'tabata',p:{e:25,r:15,n:12},nb:4,ordre:'v',mob:'mod',ep:1,aide:'3 × 4 exercices, 3 N2 + 1 N1 · 8 min'},
+ {id:'tm1',nom:'TABATA modéré N1',f:'tabata',p:{e:30,r:30,n:8},nb:4,ordre:'v',mob:'mod',ep:1,aide:'4 exercices, 2 tours (3 N2 + 1 N1) · 8 min'},
+ {id:'tm2',nom:'TABATA modéré N2',f:'tabata',p:{e:30,r:20,n:10},nb:5,ordre:'v',mob:'mod',ep:1,aide:'5 exercices, 2 tours (3 N2 + 2 N1) · 8 min 20'},
+ {id:'tm3',nom:'TABATA modéré N3',f:'tabata',p:{e:25,r:15,n:12},nb:4,ordre:'v',mob:'mod',ep:1,aide:'4 exercices, 3 tours (3 N2 + 1 N1) · 8 min'},
  {id:'em8',nom:'EMOM modéré 8 min',f:'emom',p:{min:8},nb:3,max:4,mob:'mod',ep:1,aide:'3 à 4 exercices enchaînés, 7 répétitions minimum'},
- {id:'te1',nom:'TABATA élevé N1',f:'tabata',p:{e:20,r:20,n:8},nb:4,ordre:'v',mob:'elev',ep:1,aide:'2 × 4 exercices · 5 min 20'},
- {id:'te2',nom:'TABATA élevé N2',f:'tabata',p:{e:25,r:15,n:8},nb:2,ordre:'v',mob:'elev',ep:1,aide:'4 × 2 exercices · 5 min 20'},
- {id:'te3',nom:'TABATA élevé N3',f:'tabata',p:{e:20,r:10,n:10},nb:5,ordre:'v',mob:'elev',ep:1,aide:'2 × 5 exercices · 5 min'},
+ {id:'te1',nom:'TABATA élevé N1',f:'tabata',p:{e:20,r:20,n:8},nb:4,ordre:'v',mob:'elev',ep:1,aide:'4 exercices, 2 tours · 5 min 20'},
+ {id:'te2',nom:'TABATA élevé N2',f:'tabata',p:{e:25,r:15,n:8},nb:2,ordre:'v',mob:'elev',ep:1,aide:'2 exercices, 4 tours · 5 min 20'},
+ {id:'te3',nom:'TABATA élevé N3',f:'tabata',p:{e:20,r:10,n:10},nb:5,ordre:'v',mob:'elev',ep:1,aide:'5 exercices, 2 tours · 5 min'},
  {id:'ts',nom:'TABATA spécial (une zone)',f:'tabata',p:{e:20,r:10,n:10},nb:5,ordre:'v',mob:'elev',ep:1,special:1,aide:'une seule zone : INF, SUP, TRONC ou CARDIO'},
  {id:'em5',nom:'EMOM élevé 5 min',f:'emom',p:{min:5},nb:3,max:4,mob:'elev',ep:1,aide:'3 à 4 exercices de niveau 3'},
  {id:'t0',nom:'TABATA découverte 20/10 × 8',f:'tabata',p:{e:20,r:10,n:8},nb:2,ordre:'v',libre:1,aide:'le Tabata d’origine · 4 min'},
