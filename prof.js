@@ -59,8 +59,8 @@ async function importerListe(files,texte,classeDefaut){
   journal('Listes importées : '+C.map(c=>c+' ('+tout[c].size+')').join(', '));DB.classe=C[0];sauver();rendre();
 }
 async function qrDemarrage(c){
-  const L=DB.classesL[c];
-  const txt=await TTQR.encoder({a:'CTE',v:1,t:'C',c,l:L.eleves,u:L.lien||'',n:L.niv||'p',m:L.dem||'p',s:L.s||'l'});
+  const L=DB.classesL[c];if(!L.cc){L.cc=EPSCode.nouvelleCle();sauver()}
+  const txt=await TTQR.encoder({a:'CTE',v:1,t:'C',c,l:L.eleves,u:L.lien||'',n:L.niv||'p',m:L.dem||'p',s:L.s||'l',cc:L.cc});
   let svg;try{svg=TTQR.svgQR(txt)}catch(e){svg='<p class="avert">Liste trop longue pour un seul QR.</p>'}
   const d=document.createElement('div');d.className='qr-plein';
   d.innerHTML=`<div><h2>Classe ${esc(c)} · cross training</h2><p>${esc(CTL.NOM_NIV[L.niv||'p'])} · démarche ${esc(CTL.NOM_DEM[L.dem||'p'])} · saisie ${L.s==='c'?'complète':'légère'}</p><p>Dans l’appli élève : « Scanner le QR de la classe »</p><div class="qrbox">${svg}</div><button class="bt noir" type="button">Fermer</button></div>`;
@@ -214,7 +214,7 @@ function vClasses(){
     <p class="small muted">${(X.s||'l')==='c'?'Complète : critères demandés après chaque exercice pendant le WOD, effort + muscles / souffle / tête, commentaire et conseil du coach obligatoires, ressenti de séance.':'Légère : critères d’exécution et effort perçu en fin de WOD seulement, décision de régulation ; commentaire et conseil facultatifs. Pour commencer le cycle.'}</p>
     <label class="ch">Lien d’envoi en ligne (Nuage, « Demande de fichier ») — facultatif, jamais visible par les élèves</label>
     <input type="url" class="cl-lien" data-c="${esc(c)}" value="${esc(X.lien)}" placeholder="vide = les élèves montrent leur QR code">
-    <div class="rangee" style="margin-top:10px"><button class="bt orange" type="button" data-act="qrdem" data-v="${esc(c)}">QR de démarrage</button>
+    <div class="rangee" style="margin-top:10px"><button class="bt orange" type="button" data-act="qrdem" data-v="${esc(c)}">QR de démarrage</button><button class="bt" type="button" data-act="codecours" data-v="${esc(c)}">🔑 Code du cours</button>
       <details><summary class="small">Voir la liste</summary><ol class="small">${X.eleves.map(n=>`<li>${esc(n)}</li>`).join('')}</ol></details>
       <button class="bt mini danger" type="button" data-act="clsuppr" data-v="${esc(c)}">Retirer la classe</button></div>
     <p class="small muted">Niveau, démarche et lien partent dans le QR : si tu les changes, chaque tablette rescanne le QR (Mon binôme → Nouvelle liste de classe).</p></section>`}).join('')||'<p class="muted">Aucune classe pour l’instant.</p>'}`;
@@ -380,6 +380,7 @@ document.addEventListener('click',async ev=>{
     case 'clsai':DB.classesL[b.dataset.c].s=v;toast('Saisie changée : affiche le nouveau QR de démarrage.');break;
     case 'cldem':DB.classesL[b.dataset.c].dem=v;toast('Démarche changée : affiche le nouveau QR de démarrage.');break;
     case 'qrdem':await qrDemarrage(v);return;
+    case 'codecours':{const L=DB.classesL[v];if(!L.cc){L.cc=EPSCode.nouvelleCle();sauver()}EPSCode.prof({app:'ctp',classe:v,cle:L.cc,seances:Array.from({length:9},(_,i)=>({v:String(i+1),n:'Séance '+(i+1)}))});return}
     case 'clsuppr':if(!confirm('Retirer la classe '+v+' ? Les séances reçues restent dans la sauvegarde.'))return;delete DB.classesL[v];DB.classe='';break;
     case 'demo':creerDemo();toast('Classe DEMO créée : regarde Appel, Élèves, Épreuve.');break;
     case 'proposer':{if(!DB.eleve)return;const I=indices(DB.eleve),N=noteDe(DB.eleve);let n=0;

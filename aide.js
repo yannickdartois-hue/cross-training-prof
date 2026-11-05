@@ -1,6 +1,13 @@
 /* aide.js — mode d'emploi de l'outil prof cross training (lu par eps-aide.js) */
 window.EPS_AIDE={appli:'Cross training · Prof',bouton:false,publics:[
 {id:'prof',titre:'Professeur',chapitres:[
+{t:'🔑 Code du cours (chaque cours)',html:`<ol>
+<li>Les élèves utilisent leur téléphone : sans verrou, ils pourraient remplir chez eux des séances à l’avance. Le code du cours l’empêche.</li>
+<li>Début de cours : Classes → <span class="bouton">🔑 Code du cours</span>, vérifiez la séance, écrivez les 4 chiffres au tableau.</li>
+<li>Chaque groupe tape le code : la séance du jour s’ouvre sur son téléphone pendant 2 heures. Sans code, l’appli se consulte mais on ne peut rien saisir.</li>
+<li>Le code ne vaut que pour cette séance et ce jour-là. Pour préparer un cours, changez la date : le code s’affiche à l’avance. Aucune connexion nécessaire.</li>
+</ol><p class="astuce">Une seule fois après cette mise à jour : refaites scanner le <b>QR de démarrage</b> (il apporte la clé de la classe). Tant qu’un téléphone ne l’a pas rescanné, il n’est pas verrouillé.</p>`},
+
 {t:'Rentrée',html:`<ol><li><b>Classes</b> : importe l’export Pronote (xlsx, xls, csv) ou colle la liste.</li>
 <li>Pour chaque classe : <b>niveau</b> (Première ou Terminale), <b>démarche</b> (progressive ou GAREEPS), lien de dépôt du Nuage (facultatif).</li>
 <li>Premier cours : <span class="bouton">QR de démarrage</span> affiché ; chaque tablette de binôme le scanne.</li></ol>`},
