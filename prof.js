@@ -4,6 +4,8 @@
    fiche de chaque élève (toutes ses séances), grille de l'épreuve, export.
    Données gardées sur cet appareil (localStorage). Noms complets : jamais envoyés en ligne.
    ===================================================================== */
+const AVT=(n,b,c)=>window.EPSAvatar?EPSAvatar(n,b,c):'';
+
 'use strict';
 const CLE='ctp-v1';
 const $=s=>document.querySelector(s);
@@ -199,7 +201,7 @@ function rendre(){
 }
 function vClasses(){
   const L=classes();
-  return `<h2>Classes</h2>
+  return `${!L.length?AVT('prof','Bienvenue ! Commence par importer la liste Pronote de ta classe.'):''}<h2>Classes</h2>
   <section class="carte"><h3>Importer une liste Pronote</h3>
     <p class="small muted">Pronote : liste des élèves → Exporter (xlsx, xls ou csv). Une colonne « Classe » permet d’importer plusieurs classes d’un coup. Ou colle la liste (« NOM Prénom », un élève par ligne).</p>
     <div class="grille2"><div><label class="ch" for="cl-nom">Classe (si le fichier ne la donne pas)</label><input id="cl-nom" type="text" placeholder="1G3"></div>
@@ -325,7 +327,7 @@ function vEpreuve(){
 }
 function vExport(){
   const E=DB.classe?elevesClasse():[];
-  return `<h2>Exporter</h2>
+  return `<h2>Exporter</h2>${AVT('tableau','Vérifie les notes avant de les reporter dans Pronote.')}
   ${DB.classe?`<section class="carte"><h3>Notes de ${esc(DB.classe)}</h3><div class="defile"><table class="tab"><tr><th>Élève</th><th>Produire /7</th><th>Analyser /5</th><th>AFL2</th><th>AFL3</th><th>Répartition</th><th>Total /20</th></tr>
     ${E.map(([k,n])=>{const t=totalNote(k);return `<tr><td>${esc(n)}</td><td>${t.p.toFixed(2)}</td><td>${t.a.toFixed(2)}</td><td>${t.c.toFixed(2)}</td><td>${t.r.toFixed(2)}</td><td>${repartition(k)}</td><td><b>${t.tot.toFixed(1)}</b>${t.complet?'':' <small class="muted">incomplet</small>'}</td></tr>`}).join('')}</table></div>
     <div class="rangee"><button class="bt orange" type="button" data-act="csvnotes">Notes (CSV)</button><button class="bt" type="button" data-act="csvseances">Toutes les séances (CSV)</button><button class="bt" type="button" data-act="pdf">🖨 Imprimer / PDF</button><button class="bt" type="button" data-act="json">{ } Séances (JSON)</button></div></section>`:''}
