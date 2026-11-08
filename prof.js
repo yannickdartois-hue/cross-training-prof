@@ -70,7 +70,7 @@ async function importerListe(files,texte,classeDefaut){
   if(files&&files.length)await chargerScript('xlsx.js','XLSX');
   for(const f of files||[]){const buf=await f.arrayBuffer();let wb;
     if(/\.(csv|txt)$/i.test(f.name)||/text|csv/.test(f.type)){let t;try{t=new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){t=new TextDecoder('windows-1252').decode(buf)}
-      t=t.replace(/^﻿/,'');const l1=t.split(/\r?\n/)[0];const sep=(l1.match(/;/g)||[]).length>=(l1.match(/,/g)||[]).length?';':',';wb=XLSX.read(t,{type:'string',FS:sep})}
+      t=t.replace(/^﻿/,'');const l1=t.split(/\r?\n/)[0];const sep=['\t',';',','].map(c=>[c,l1.split(c).length]).sort((a,b)=>b[1]-a[1])[0][0];wb=XLSX.read(t,{type:'string',FS:sep})}
     else wb=XLSX.read(buf,{type:'array'});
     wb.SheetNames.forEach(sn=>lots.push(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''})))}
   if(texte&&texte.trim())lots.push(texte.trim().split(/\r?\n/).map(l=>l.split(/\t|;/)));
