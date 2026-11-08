@@ -413,7 +413,7 @@ document.addEventListener('change',async ev=>{
   if(t.id==='cl-fic'&&t.files.length){const F=[...t.files];t.value='';await importerListe(F,'',$('#cl-nom').value.trim());return}
   if(t.id==='fic'&&t.files.length){const F=[...t.files];t.value='';await importerFichiers(F);return}
   if(t.id==='photoqr'&&t.files[0]){try{const m=await lirePhoto(t.files[0]);journal(m);sauver();rendre();toast(m)}catch(e){toast(e.message)}t.value='';return}
-  if(t.id==='restaure'&&t.files[0]){try{const o=JSON.parse(await t.files[0].text());if(!o.classesL||!o.rec)throw 0;DB=Object.assign(vide(),o);sauver();rendre();toast('Sauvegarde restaurée.')}catch(e){toast('Ce fichier n’est pas une sauvegarde de l’outil prof.')}t.value='';return}
+  if(t.id==='restaure'&&t.files[0]){try{const o=JSON.parse(await EPSCoffre.lireFichier(t.files[0]));if(!o.classesL||!o.rec)throw 0;DB=Object.assign(vide(),o);sauver();rendre();toast('Sauvegarde restaurée.')}catch(e){toast('Ce fichier n’est pas une sauvegarde de l’outil prof.')}t.value='';return}
   if(t.id==='selcl'){DB.classe=t.value;DB.eleve='';sauver();rendre();return}
   if(t.id==='selel'){DB.eleve=t.value;sauver();rendre();return}
   if(t.classList.contains('cl-lien')){DB.classesL[t.dataset.c].lien=t.value.trim();sauver();toast('Lien enregistré : affiche le nouveau QR de démarrage.');return}
