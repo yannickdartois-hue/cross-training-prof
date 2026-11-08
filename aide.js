@@ -8,7 +8,7 @@ window.EPS_AIDE={appli:'Cross training · Prof',bouton:false,publics:[
 <li>Le code ne vaut que pour cette séance et ce jour-là. Pour préparer un cours, changez la date : le code s’affiche à l’avance. Aucune connexion nécessaire.</li>
 </ol><p class="astuce">Une seule fois après cette mise à jour : refaites scanner le <b>QR de démarrage</b> (il apporte la clé de la classe). Tant qu’un téléphone ne l’a pas rescanné, il n’est pas verrouillé.</p>`},
 
-{t:'Rentrée',html:`<ol><li><b>Classes</b> : importe l’export Pronote (xlsx, xls, csv) ou colle la liste.</li>
+{t:'Rentrée',html:`<ol><li><b>Classes</b> : importe l’export Pronote (xlsx, xls, csv) ou colle la liste.</li><li><b>Toutes les classes d’un coup</b> : le fichier fait par la page « Mes classes » du portail mon-EPS. <b>Élève arrivé en cours d’année</b> : colle « NOM Prénom » avec le nom de la classe → « Ajouter ces élèves ». Classe déjà présente : l’appli demande toujours « Ajouter » ou « Remplacer la liste ». Ensuite, fais rescanner le QR de démarrage.</li>
 <li>Pour chaque classe : <b>niveau</b> (Première ou Terminale), <b>démarche</b> (progressive ou GAREEPS), lien de dépôt du Nuage (facultatif).</li>
 <li>Premier cours : <span class="bouton">QR de démarrage</span> affiché ; chaque tablette de binôme le scanne.</li></ol>`},
 {t:'Après chaque séance',html:`<ul><li><b>Recevoir</b> : scanne les QR des élèves à la suite, ou importe les fichiers .json (ou le .zip du dossier du Nuage).</li>
