@@ -41,7 +41,7 @@ function lireLignes(rows,classeDefaut){
   const out={};
   rows.slice(hi+1).forEach(r=>{let n='';
     if(iNom>=0&&iPre>=0&&r[iNom])n=r[iPre]+' '+r[iNom].toUpperCase();else if(iEl>=0)n=decouperNom(r[iEl]);else if(hi<0)n=decouperNom(r[0]);
-    if(!n||/^(total|effectif)/i.test(n))return;const c=(iCl>=0&&r[iCl])||classeDefaut;if(!c)return;(out[c]=out[c]||new Set()).add(n.trim())});
+    if(!n||/^(total|effectif)/i.test(n))return;const c=classeDefaut||(iCl>=0&&r[iCl]);if(!c)return; /* nom écrit = groupe : remplace la classe Pronote (groupes de Terminale) */(out[c]=out[c]||new Set()).add(n.trim())});
   return out;
 }
 function chargerScript(src,glob){return new Promise((ok,ko)=>{if(window[glob])return ok();const e=document.createElement('script');e.src=src;e.onload=()=>ok();e.onerror=()=>ko(new Error('Impossible de charger '+src));document.head.appendChild(e)})}
@@ -227,7 +227,7 @@ function vClasses(){
   return `${!L.length?AVT('prof','Bienvenue ! Commence par importer la liste Pronote de ta classe.'):''}<h2>Classes</h2>
   <section class="carte"><h3>Importer une liste Pronote</h3>
     <p class="small muted">Pronote : liste des élèves → Exporter (xlsx, xls ou csv). Une colonne « Classe » permet d’importer plusieurs classes d’un coup. Ou colle la liste (« NOM Prénom », un élève par ligne).</p>
-    <div class="grille2"><div><label class="ch" for="cl-nom">Classe (si le fichier ne la donne pas)</label><input id="cl-nom" type="text" placeholder="1G3"></div>
+    <div class="grille2"><div><label class="ch" for="cl-nom">Classe ou groupe (rempli : remplace la classe Pronote du fichier, ex. groupe de Terminale)</label><input id="cl-nom" type="text" placeholder="1G3"></div>
     <div><label class="ch">Fichier</label><label class="bt noir" for="cl-fic">Choisir le fichier Pronote</label><input id="cl-fic" type="file" accept=".xlsx,.xls,.csv,.ods,.txt" hidden multiple></div></div>
     <label class="ch" for="cl-txt">Ou coller la liste</label><textarea id="cl-txt" rows="3" placeholder="DUPONT Marie&#10;MARTIN Léo"></textarea>
     <div class="rangee" style="margin-top:8px"><button class="bt mini" type="button" data-act="clcoller">Importer la liste collée</button></div></section>
