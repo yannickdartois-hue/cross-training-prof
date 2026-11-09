@@ -85,7 +85,7 @@ async function importerListe(files,texte,classeDefaut){
 }
 async function qrDemarrage(c){
   const L=DB.classesL[c];if(!L.cc){L.cc=EPSCode.nouvelleCle();sauver()}
-  const txt=await TTQR.encoder({a:'CTE',v:1,t:'C',c,l:L.eleves,u:L.lien||'',n:L.niv||'p',m:L.dem||'p',s:L.s||'l',cc:L.cc});
+  const txt=await TTQR.encoder({a:'CTE',v:1,t:'C',c,l:L.eleves,u:L.lien||'',n:L.niv||'p',m:L.dem||'p',s:L.s||'l',cc:L.cc,cj:await EPSCode.cjDuJour('ctp',c,L.cc)});
   let svg;try{svg=TTQR.svgQR(txt)}catch(e){svg='<p class="avert">Liste trop longue pour un seul QR.</p>'}
   const d=document.createElement('div');d.className='qr-plein';
   d.innerHTML=`<div><h2>Classe ${esc(c)} · cross training</h2><p>${esc(CTL.NOM_NIV[L.niv||'p'])} · démarche ${esc(CTL.NOM_DEM[L.dem||'p'])} · saisie ${L.s==='c'?'complète':'légère'}</p><p>Dans l’appli élève : « Scanner le QR de la classe »</p><div class="qrbox">${svg}</div><button class="bt noir" type="button">Fermer</button></div>`;
