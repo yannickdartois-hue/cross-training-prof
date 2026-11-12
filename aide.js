@@ -25,4 +25,5 @@ window.EPS_AIDE={appli:'Cross training · Prof',bouton:false,publics:[
 {t:'Noter',html:`<ul><li><b>Élèves</b> : toutes les séances d’un élève (WOD, résultats, FC, effort, critères, décision, coach et conseil, régulations, bilans).</li>
 <li><b>Épreuve</b> : la grille du référentiel. À côté de chaque élément, un indice tiré du carnet et un <b>degré proposé</b> (en rouge s’il diffère de ta note). « Reprendre les degrés proposés » remplit seulement les cases vides ; c’est toi qui valides.</li>
 <li><b>Exporter</b> : notes en CSV (Excel), toutes les séances en CSV, sauvegarde.</li></ul>`},
+{t:'Code oublié par un binôme',html:`<ol><li>Le binôme touche « Code oublié ? » puis supprime son carnet : il ne peut pas être rouvert.</li><li>Il crée un nouveau binôme avec un nouveau code (à noter au dos du carnet).</li><li>Ses séances déjà envoyées sont chez vous ; ce qui n’avait pas été envoyé est perdu.</li></ol><p>La même explication est dans l’onglet Classes.</p>`},
 {t:'Données',html:`<p>Tout reste sur cet appareil. Pense à télécharger une sauvegarde de temps en temps. Fin d’année : Exporter → « Archiver l’année ».</p>`}]}]};

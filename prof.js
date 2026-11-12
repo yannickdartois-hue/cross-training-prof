@@ -242,7 +242,8 @@ function vClasses(){
     <div class="rangee" style="margin-top:10px"><button class="bt orange" type="button" data-act="qrdem" data-v="${esc(c)}">QR de démarrage</button><button class="bt" type="button" data-act="codecours" data-v="${esc(c)}">🔑 Code du cours</button>
       <details><summary class="small">Voir la liste</summary><ol class="small">${X.eleves.map(n=>`<li>${esc(n)}</li>`).join('')}</ol></details>
       <button class="bt mini danger" type="button" data-act="clsuppr" data-v="${esc(c)}">Retirer la classe</button></div>
-    <p class="small muted">Niveau, démarche et lien partent dans le QR : si tu les changes, chaque tablette rescanne le QR (Mon binôme → Nouvelle liste de classe).</p></section>`}).join('')||'<p class="muted">Aucune classe pour l’instant.</p>'}`;
+    <p class="small muted">Niveau, démarche et lien partent dans le QR : si tu les changes, chaque tablette rescanne le QR (Mon binôme → Nouvelle liste de classe).</p></section>`}).join('')||'<p class="muted">Aucune classe pour l’instant.</p>'}
+  <section class="carte"><h3>🔑 Un binôme a oublié son code</h3><ol class="small"><li>Le binôme touche « Code oublié ? » puis supprime son carnet : il ne peut pas être rouvert.</li><li>Il crée un nouveau binôme (nouveau code à noter).</li><li>Ses séances déjà envoyées sont chez toi (onglet Élèves) : rien n’est à refaire de ce côté. Ce qui n’avait pas été envoyé est perdu.</li></ol></section>`;
 }
 function vRecevoir(){
   return `<h2>Recevoir les séances</h2>
