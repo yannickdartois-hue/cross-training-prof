@@ -243,7 +243,7 @@ function vClasses(){
       <details><summary class="small">Voir la liste</summary><ol class="small">${X.eleves.map(n=>`<li>${esc(n)}</li>`).join('')}</ol></details>
       <button class="bt mini danger" type="button" data-act="clsuppr" data-v="${esc(c)}">Retirer la classe</button></div>
     <p class="small muted">Niveau, démarche et lien partent dans le QR : si tu les changes, chaque tablette rescanne le QR (Mon binôme → Nouvelle liste de classe).</p></section>`}).join('')||'<p class="muted">Aucune classe pour l’instant.</p>'}
-  <section class="carte"><h3>🔑 Un binôme a oublié son code</h3><ol class="small"><li>Le binôme touche « Code oublié ? » puis supprime son carnet : il ne peut pas être rouvert.</li><li>Il crée un nouveau binôme (nouveau code à noter).</li><li>Ses séances déjà envoyées sont chez toi (onglet Élèves) : rien n’est à refaire de ce côté. Ce qui n’avait pas été envoyé est perdu.</li></ol></section>`;
+  <section class="carte"><h3>🔑 Un binôme a oublié son code</h3><ol class="small"><li>Le binôme touche « Code oublié ? ». <b>Si un QR s’affiche</b> : scanne-le avec le scanner de cet outil, le code s’affiche en grand ; dis-le au binôme. Rien n’est perdu.</li><li><b>Sinon</b> (carnet pas encore protégé) : le binôme supprime son carnet et en crée un nouveau ; ses séances envoyées sont chez toi, le reste est perdu.</li></ol><p class="small muted">Un binôme est protégé dès qu’il a scanné le QR de la classe (version de novembre 2026) puis ouvert son carnet avec son code : <b>fais rescanner le QR de la classe au prochain cours</b>. Garde ta sauvegarde : la clé qui lit les codes est dedans.</p></section>`;
 }
 function vRecevoir(){
   return `<h2>Recevoir les séances</h2>
