@@ -231,7 +231,7 @@ function vClasses(){
     <div><label class="ch">Fichier</label><label class="bt noir" for="cl-fic">Choisir le fichier Pronote</label><input id="cl-fic" type="file" accept=".xlsx,.xls,.csv,.ods,.txt" hidden multiple></div></div>
     <label class="ch" for="cl-txt">Ou coller la liste</label><textarea id="cl-txt" rows="3" placeholder="DUPONT Marie&#10;MARTIN Léo"></textarea>
     <div class="rangee" style="margin-top:8px"><button class="bt mini" type="button" data-act="clcoller">Importer la liste collée</button></div></section>
-  ${L.includes('DEMO')?'':`<section class="carte"><h3>Démonstration</h3><p class="small muted">Pour découvrir l’outil sans vraie classe : une classe « DEMO » de 6 élèves fictifs, avec 3 séances déjà reçues. À retirer ensuite (« Retirer la classe »).</p><button class="bt mini" type="button" data-act="demo">Créer la classe de démonstration</button></section>`}
+  ${L.includes('DEMO')?'':`<section class="carte"><h3>Démonstration</h3><p class="small muted">Pour découvrir l’outil sans vraie classe : une classe « DEMO » de 6 élèves fictifs, avec 3 séances déjà reçues. Rien n’est enregistré : vos vraies données reviennent telles quelles en quittant la démo.</p><button class="bt mini" type="button" data-act="demo">Découvrir avec une classe fictive</button></section>`}
   ${L.map(c=>{const X=DB.classesL[c];return `<section class="carte"><h3>${esc(c)} <span class="small muted">· ${X.eleves.length} élèves</span></h3>
     <div class="grille2"><div><label class="ch">Niveau</label><div class="rangee">${['p','t'].map(n=>`<button type="button" class="bt mini ${X.niv===n?'noir':''}" data-act="clniv" data-c="${esc(c)}" data-v="${n}">${CTL.NOM_NIV[n]}</button>`).join('')}</div></div>
     <div><label class="ch">Démarche du cycle</label><div class="rangee">${['p','g'].map(n=>`<button type="button" class="bt mini ${X.dem===n?'noir':''}" data-act="cldem" data-c="${esc(c)}" data-v="${n}">${n==='p'?'Progressive':'GAREEPS'}</button>`).join('')}</div></div></div>
@@ -408,7 +408,7 @@ document.addEventListener('click',async ev=>{
     case 'qrdem':await qrDemarrage(v);return;
     case 'codecours':{const L=DB.classesL[v];if(!L.cc){L.cc=EPSCode.nouvelleCle();sauver()}EPSCode.prof({app:'ctp',classe:v,cle:L.cc,seances:Array.from({length:9},(_,i)=>({v:String(i+1),n:'Séance '+(i+1)}))});return}
     case 'clsuppr':if(!confirm('Retirer la classe '+v+' ? Les séances reçues restent dans la sauvegarde.'))return;delete DB.classesL[v];DB.classe='';break;
-    case 'demo':creerDemo();toast('Classe DEMO créée : regarde Appel, Élèves, Épreuve.');break;
+    case 'demo':creerDemo();toast('🎭 Démo : regarde Appel, Élèves, Épreuve.');break;
     case 'proposer':{if(!DB.eleve)return;const I=indices(DB.eleve),N=noteDe(DB.eleve);let n=0;
       [['p',I.pd],['a',I.ad],['c',I.cd]].forEach(([g,L])=>L.forEach((d,i)=>{if(N[g][i]==null&&d!=null){N[g][i]=DEG[d];n++}}));
       I.rd.forEach((d,i)=>{if(N.r[i]==null&&d!=null){N.r[i]=d;n++}});
