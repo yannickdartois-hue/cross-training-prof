@@ -83,13 +83,23 @@ async function importerListe(files,texte,classeDefaut){
   C.forEach(c=>{const old=DB.classesL[c]||{lien:'',niv:/^t/i.test(c)?'t':'p',dem:'p'};DB.classesL[c]=Object.assign(old,{eleves:[...tout[c]].sort(triNom)})});
   journal('Listes importées : '+C.map(c=>c+' ('+tout[c].size+')').join(', '));if(mode==='ajout'){const r=C.map(c=>{const ka=new Set(avant[c].map(cleNomL)),nv=[...tout[c].keys()].filter(n=>!ka.has(cleNomL(n)));return c+' : '+(nv.length?'+'+nv.length+' ('+nv.join(', ')+')':'aucun nouveau nom')+' → '+tout[c].size+' élèves'});setTimeout(()=>alert('Élèves ajoutés\n'+r.join('\n')+'\n\nPense à refaire scanner le QR de démarrage aux groupes de cette classe.'),50)}DB.classe=C[0];sauver();rendre();
 }
+/* 24/11/2026 : choisir la séance que le QR de la classe ouvre aujourd'hui (même mémoire que « Code du cours ») */
+const SQR={
+  lire(app,c){try{const m=JSON.parse(localStorage.getItem('eps-code-prof:'+app)||'{}')[c];return m&&m.d===EPSCode.jour()?String(m.s):''}catch(e){return ''}},
+  ecrire(app,c,s){try{const k='eps-code-prof:'+app,m=JSON.parse(localStorage.getItem(k)||'{}');m[c]={s:String(s),d:EPSCode.jour()};localStorage.setItem(k,JSON.stringify(m))}catch(e){}},
+  html(app,c,L){const s=SQR.lire(app,c),x=L.find(y=>String(y.v)===s),on=y=>String(y.v)===s;
+    return `<div class="sqr" style="margin:8px 0"><p style="margin:0 0 6px">${x?'Ce QR ouvre la <b>'+esc(x.n)+'</b> aujourd’hui pendant 2 h, sans code à taper. Autre séance :':'<b>Choisissez la séance</b> que ce QR ouvre aujourd’hui :'}</p><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${L.map(y=>`<button type="button" data-sqr="${esc(c)}|${esc(String(y.v))}" aria-pressed="${on(y)}" style="min-width:52px;min-height:48px;border-radius:12px;font-weight:800;font-size:17px;cursor:pointer;border:2px solid ${on(y)?'#15803d':'#cbd5e1'};background:${on(y)?'#15803d':'#fff'};color:${on(y)?'#fff':'#111'}">${esc(y.c)}</button>`).join('')}</div></div>`},
+  brancher(app,rouvrir){document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-sqr]');if(!b)return;e.preventDefault();e.stopPropagation();
+    const v=b.dataset.sqr,i=v.lastIndexOf('|'),c=v.slice(0,i);SQR.ecrire(app,c,v.slice(i+1));document.querySelectorAll('.qr-plein,.voile').forEach(x=>{if(x.contains(b))x.remove()});rouvrir(c)},true)}
+};
+SQR.brancher('ctp',c=>qrDemarrage(c));
 async function qrDemarrage(c){
   const L=DB.classesL[c];if(!L.cc){L.cc=EPSCode.nouvelleCle();sauver()}
   const txt=await TTQR.encoder({a:'CTE',v:1,t:'C',c,l:L.eleves,u:L.lien||'',n:L.niv||'p',m:L.dem||'p',s:L.s||'l',cc:L.cc,cj:await EPSCode.cjDuJour('ctp',c,L.cc)});
   let svg;try{svg=TTQR.svgQR(txt)}catch(e){svg='<p class="avert">Liste trop longue pour un seul QR.</p>'}
   const d=document.createElement('div');d.className='qr-plein';
-  d.innerHTML=`<div><h2>Classe ${esc(c)} · cross training</h2><p>${esc(CTL.NOM_NIV[L.niv||'p'])} · démarche ${esc(CTL.NOM_DEM[L.dem||'p'])} · saisie ${L.s==='c'?'complète':'légère'}</p><p>Dans l’appli élève : « Scanner le QR de la classe »</p><div class="qrbox">${svg}</div><button class="bt noir" type="button">Fermer</button></div>`;
-  d.querySelector('button').onclick=()=>d.remove();document.body.appendChild(d);
+  d.innerHTML=`<div><h2>Classe ${esc(c)} · cross training</h2>${SQR.html('ctp',c,Array.from({length:9},(_,i)=>({v:String(i+1),n:'Séance '+(i+1),c:'S'+(i+1)})))}<p>${esc(CTL.NOM_NIV[L.niv||'p'])} · démarche ${esc(CTL.NOM_DEM[L.dem||'p'])} · saisie ${L.s==='c'?'complète':'légère'}</p><p>Dans l’appli élève : « Scanner le QR de la classe »</p><div class="qrbox">${svg}</div><button class="bt noir" type="button">Fermer</button></div>`;
+  d.querySelector('button.bt.noir').onclick=()=>d.remove();document.body.appendChild(d);
 }
 
 /* ---------- Réception ---------- */
