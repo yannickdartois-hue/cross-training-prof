@@ -151,6 +151,8 @@ table.prog .pts span{display:inline-flex;align-items:flex-end;gap:1px;margin-rig
 :root[data-theme="dark"] .demo-bandeau{background:#3A3010;color:#FFE08A;border-color:#8A6D00}
 .demo-carte{border-style:dashed}
 nav.onglets button.ici{color:var(--ligne-fonce);box-shadow:inset 0 4px 0 var(--ligne)}
+/* chantier 11 : sur téléphone, 7 onglets ne tiennent pas dans la largeur : bande qui défile, libellés entiers */
+@media(max-width:560px){nav.onglets{display:flex;overflow-x:auto;scrollbar-width:none}nav.onglets::-webkit-scrollbar{display:none}nav.onglets button{flex:0 0 auto;min-width:76px;padding:0 8px;white-space:nowrap}}
 /* Fenêtres */
 .voile{position:fixed;inset:0;background:rgba(10,15,25,.55);display:flex;align-items:flex-end;justify-content:center;z-index:45;padding:12px}
 .fen{background:var(--craie);color:var(--encre);border-radius:18px;padding:18px;max-width:520px;width:100%;max-height:92vh;overflow:auto}

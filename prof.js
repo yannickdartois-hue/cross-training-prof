@@ -230,6 +230,7 @@ function rendre(){
   if(!DB.classe||!DB.classesL[DB.classe])DB.classe=classes()[0]||'';
   const T=[['classes','Classes'],['recevoir','Recevoir'],['appel','Appel'],['surveiller','À surveiller'],['eleves','Élèves'],['epreuve','Épreuve'],['export','Exporter']];
   $('#onglets').innerHTML=T.map(t=>`<button type="button" class="${DB.tab===t[0]?'ici':''}" data-act="tab" data-v="${t[0]}">${t[1]}</button>`).join('');
+  {const n=$('#onglets'),on=n&&n.querySelector('.ici');if(on&&n.scrollWidth>n.clientWidth)n.scrollLeft=Math.max(0,on.offsetLeft-(n.clientWidth-on.offsetWidth)/2)}   /* onglet actif visible (bande qui défile) */
   $('#classe').innerHTML=classes().length?`<label for="selcl" class="small">Classe</label><select id="selcl">${classes().map(c=>`<option${c===DB.classe?' selected':''}>${esc(c)}</option>`).join('')}</select><span class="small muted">${DB.classe?esc(CTL.NOM_NIV[C().niv||'p'])+' · '+esc(CTL.NOM_DEM[C().dem||'p']):''}</span>`:'';
   const V={classes:vClasses,recevoir:vRecevoir,appel:vAppel,surveiller:vSurveiller,eleves:vEleves,epreuve:vEpreuve,export:vExport};
   $('#main').innerHTML=(V[DB.tab]||vClasses)();
