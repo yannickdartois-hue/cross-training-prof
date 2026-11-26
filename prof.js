@@ -83,20 +83,22 @@ async function importerListe(files,texte,classeDefaut){
   C.forEach(c=>{const old=DB.classesL[c]||{lien:'',niv:/^t/i.test(c)?'t':'p',dem:'p'};DB.classesL[c]=Object.assign(old,{eleves:[...tout[c]].sort(triNom)})});
   journal('Listes importées : '+C.map(c=>c+' ('+tout[c].size+')').join(', '));if(mode==='ajout'){const r=C.map(c=>{const ka=new Set(avant[c].map(cleNomL)),nv=[...tout[c].keys()].filter(n=>!ka.has(cleNomL(n)));return c+' : '+(nv.length?'+'+nv.length+' ('+nv.join(', ')+')':'aucun nouveau nom')+' → '+tout[c].size+' élèves'});setTimeout(()=>alert('Élèves ajoutés\n'+r.join('\n')+'\n\nPense à refaire scanner le QR de démarrage aux groupes de cette classe.'),50)}DB.classe=C[0];sauver();rendre();
 }
-/* 24/11/2026 : choisir la séance que le QR de la classe ouvre aujourd'hui (même mémoire que « Code du cours ») */
+/* 24/11/2026 : choisir la séance que le QR de la classe ouvre aujourd'hui (mémoire commune eps-code.js) */
 const SQR={
-  lire(app,c){try{const m=JSON.parse(localStorage.getItem('eps-code-prof:'+app)||'{}')[c];return m&&m.d===EPSCode.jour()?String(m.s):''}catch(e){return ''}},
-  ecrire(app,c,s){try{const k='eps-code-prof:'+app,m=JSON.parse(localStorage.getItem(k)||'{}');m[c]={s:String(s),d:EPSCode.jour()};localStorage.setItem(k,JSON.stringify(m))}catch(e){}},
-  html(app,c,L){const s=SQR.lire(app,c),x=L.find(y=>String(y.v)===s),on=y=>String(y.v)===s;
-    return `<div class="sqr" style="margin:8px 0"><p style="margin:0 0 6px">${x?'Ce QR ouvre la <b>'+esc(x.n)+'</b> aujourd’hui pendant 2 h, sans code à taper. Autre séance :':'<b>Choisissez la séance</b> que ce QR ouvre aujourd’hui :'}</p><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${L.map(y=>`<button type="button" data-sqr="${esc(c)}|${esc(String(y.v))}" aria-pressed="${on(y)}" style="min-width:52px;min-height:48px;border-radius:12px;font-weight:800;font-size:17px;cursor:pointer;border:2px solid ${on(y)?'#15803d':'#cbd5e1'};background:${on(y)?'#15803d':'#fff'};color:${on(y)?'#fff':'#111'}">${esc(y.c)}</button>`).join('')}</div></div>`},
-  brancher(app,rouvrir){document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-sqr]');if(!b)return;e.preventDefault();e.stopPropagation();
+  lire(app,c,L){return EPSCode.seanceDuJour(app,c,(L||[]).map(y=>String(y.v)))},   /* v2 (chantier 9) : toujours une séance proposée */
+  ecrire(app,c,s){EPSCode.choisirSeance(app,c,s)},
+  html(app,c,L){const s=SQR.lire(app,c,L),x=L.find(y=>String(y.v)===s),on=y=>String(y.v)===s;
+    return `<div class="sqr" style="margin:8px 0"><p style="margin:0 0 6px">${x?'Ce QR ouvre la <b>'+esc(x.n)+'</b> aujourd’hui (pendant 2 h après le scan). Autre séance :':'<b>Choisissez la séance</b> que ce QR ouvre aujourd’hui :'}</p><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${L.map(y=>`<button type="button" data-sqr="${esc(c)}|${esc(String(y.v))}" aria-pressed="${on(y)}" style="min-width:52px;min-height:48px;border-radius:12px;font-weight:800;font-size:17px;cursor:pointer;border:2px solid ${on(y)?'#15803d':'#cbd5e1'};background:${on(y)?'#15803d':'#fff'};color:${on(y)?'#fff':'#111'}">${esc(y.c)}</button>`).join('')}</div><p style="margin:10px 0 0;text-align:center"><button type="button" data-sqrprep="${esc(c)}" style="min-height:46px;padding:0 16px;border-radius:12px;font-weight:700;font-size:16px;cursor:pointer;border:2px solid #cbd5e1;background:#fff;color:#111">🗓 QR pour un autre jour · imprimer</button></p></div>`},
+  brancher(app,rouvrir,prep){document.addEventListener('click',e=>{const p=e.target.closest&&e.target.closest('[data-sqrprep]');if(p){e.preventDefault();e.stopPropagation();if(prep)prep(p.dataset.sqrprep);return}
+    const b=e.target.closest&&e.target.closest('[data-sqr]');if(!b)return;e.preventDefault();e.stopPropagation();
     const v=b.dataset.sqr,i=v.lastIndexOf('|'),c=v.slice(0,i);SQR.ecrire(app,c,v.slice(i+1));document.querySelectorAll('.qr-plein,.voile').forEach(x=>{if(x.contains(b))x.remove()});rouvrir(c)},true)}
 };
-SQR.brancher('ctp',c=>qrDemarrage(c));
-async function qrDemarrage(c){
+SQR.brancher('ctp',c=>qrDemarrage(c),c=>{const L=DB.classesL[c];if(!L)return;if(!L.cc){L.cc=EPSCode.nouvelleCle();sauver()}EPSCode.preparer({app:'ctp',classe:c,cle:L.cc,titre:'Cross training',seances:Array.from({length:9},(_,i)=>({v:String(i+1),n:'Séance '+(i+1),c:'S'+(i+1)})).map(x=>({v:x.v,n:x.n})),qr:cj=>qrDemarrage(c,cj,true)})});
+async function qrDemarrage(c,cjForce,svgSeul){
   const L=DB.classesL[c];if(!L.cc){L.cc=EPSCode.nouvelleCle();sauver()}
-  const txt=await TTQR.encoder({a:'CTE',v:1,t:'C',c,l:L.eleves,u:L.lien||'',n:L.niv||'p',m:L.dem||'p',s:L.s||'l',cc:L.cc,cj:await EPSCode.cjDuJour('ctp',c,L.cc)});
+  const txt=await TTQR.encoder({a:'CTE',v:1,t:'C',c,l:L.eleves,u:L.lien||'',n:L.niv||'p',m:L.dem||'p',s:L.s||'l',cc:L.cc,cj:cjForce||await EPSCode.cjDuJour('ctp',c,L.cc,undefined,Array.from({length:9},(_,i)=>String(i+1)))});
   let svg;try{svg=TTQR.svgQR(txt)}catch(e){svg='<p class="avert">Liste trop longue pour un seul QR.</p>'}
+  if(svgSeul)return svg;
   const d=document.createElement('div');d.className='qr-plein';
   d.innerHTML=`<div><h2>Classe ${esc(c)} · cross training</h2>${SQR.html('ctp',c,Array.from({length:9},(_,i)=>({v:String(i+1),n:'Séance '+(i+1),c:'S'+(i+1)})))}<p>${esc(CTL.NOM_NIV[L.niv||'p'])} · démarche ${esc(CTL.NOM_DEM[L.dem||'p'])} · saisie ${L.s==='c'?'complète':'légère'}</p><p>Dans l’appli élève : « Scanner le QR de la classe »</p><div class="qrbox">${svg}</div><button class="bt noir" type="button">Fermer</button></div>`;
   d.querySelector('button.bt.noir').onclick=()=>d.remove();document.body.appendChild(d);
@@ -249,7 +251,7 @@ function vClasses(){
     <p class="small muted">${(X.s||'l')==='c'?'Complète : critères demandés après chaque exercice pendant le WOD, effort + muscles / souffle / tête, commentaire et conseil du coach obligatoires, ressenti de séance.':'Légère : critères d’exécution et effort perçu en fin de WOD seulement, décision de régulation ; commentaire et conseil facultatifs. Pour commencer le cycle.'}</p>
     <label class="ch">Lien d’envoi en ligne (Nuage, « Demande de fichier ») — facultatif, jamais visible par les élèves</label>
     <input type="url" class="cl-lien" data-c="${esc(c)}" value="${esc(X.lien)}" placeholder="vide = les élèves montrent leur QR code">
-    <div class="rangee" style="margin-top:10px"><button class="bt orange" type="button" data-act="qrdem" data-v="${esc(c)}">QR de démarrage</button><button class="bt" type="button" data-act="codecours" data-v="${esc(c)}">🔑 Code du cours</button>
+    <div class="rangee" style="margin-top:10px"><button class="bt orange" type="button" data-act="qrdem" data-v="${esc(c)}">QR de démarrage</button>
       <details><summary class="small">Voir la liste</summary><ol class="small">${X.eleves.map(n=>`<li>${esc(n)}</li>`).join('')}</ol></details>
       <button class="bt mini danger" type="button" data-act="clsuppr" data-v="${esc(c)}">Retirer la classe</button></div>
     <p class="small muted">Niveau, démarche et lien partent dans le QR : si tu les changes, chaque tablette rescanne le QR (Mon binôme → Nouvelle liste de classe).</p></section>`}).join('')||'<p class="muted">Aucune classe pour l’instant.</p>'}
@@ -416,7 +418,6 @@ document.addEventListener('click',async ev=>{
     case 'clsai':DB.classesL[b.dataset.c].s=v;toast('Saisie changée : affiche le nouveau QR de démarrage.');break;
     case 'cldem':DB.classesL[b.dataset.c].dem=v;toast('Démarche changée : affiche le nouveau QR de démarrage.');break;
     case 'qrdem':await qrDemarrage(v);return;
-    case 'codecours':{const L=DB.classesL[v];if(!L.cc){L.cc=EPSCode.nouvelleCle();sauver()}EPSCode.prof({app:'ctp',classe:v,cle:L.cc,seances:Array.from({length:9},(_,i)=>({v:String(i+1),n:'Séance '+(i+1)}))});return}
     case 'clsuppr':if(!confirm('Retirer la classe '+v+' ? Les séances reçues restent dans la sauvegarde.'))return;delete DB.classesL[v];DB.classe='';break;
     case 'demo':creerDemo();toast('🎭 Démo : regarde Appel, Élèves, Épreuve.');break;
     case 'proposer':{if(!DB.eleve)return;const I=indices(DB.eleve),N=noteDe(DB.eleve);let n=0;
