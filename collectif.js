@@ -43,13 +43,15 @@ async function eveille(){try{if('wakeLock' in navigator)verrou=await navigator.w
 
 /* ----- Déroulé ----- */
 let P=null,debut=0,pause=0,enPause=false,tick=null,dern=-1,dernS=-1,sur=0,dernHtml='',finiSonne=false;
-function lancer(){C.ex=C.ex.slice(0,5);garder();P=plan();debut=performance.now();pause=0;enPause=false;dern=-1;dernS=-1;sur=0;dernHtml='';finiSonne=false;
+function lancer(){C.ex=C.ex.slice(0,5);garder();P=plan();debut=Date.now();pause=0;enPause=false;dern=-1;dernS=-1;sur=0;dernHtml='';finiSonne=false;
   $('#ecran').hidden=false;document.body.style.overflow='hidden';eveille();
   try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}
   clearInterval(tick);tick=setInterval(peindre,100);peindre()}
 function arreter(){clearInterval(tick);tick=null;$('#ecran').hidden=true;$('#ecran').className='';document.body.style.overflow='';try{verrou&&verrou.release()}catch(e){}
   try{if(document.fullscreenElement)document.exitFullscreen()}catch(e){}}
-const ecoule=()=>((enPause?pause:performance.now())-debut)/1000;
+/* temps calculé avec l'heure réelle (Date.now). performance.now peut s'arrêter pendant la veille
+   de l'appareil (Android, PC) : le chrono aurait alors pris du retard sur la classe. */
+const ecoule=()=>((enPause?pause:Date.now())-debut)/1000;
 function peindre(){
   const t=ecoule(),tot=P[P.length-1].t0+P[P.length-1].d,k=P.findIndex(p=>t<p.t0+p.d),fini=k<0;
   const ph=fini?P[P.length-1]:P[k],reste=ph.t0+ph.d-t,s=Math.ceil(reste);
@@ -71,7 +73,7 @@ function peindre(){
   else if(ph.typ==='amrap'){haut=`<span>AMRAP ${C.min} min</span><span>Le plus de tours possible</span>`;temps=mmss(reste);milieu=liste()}
   else if(ph.typ==='fortime'){haut=`<span>For Time</span><span>Limite ${C.cap} min</span>`;temps=mmss(t-ph.t0);milieu=liste();apres='Notez votre temps à l’arrivée'}
   // On ne reconstruit l'écran que s'il change (sinon les boutons seraient remplacés 10 fois par seconde et un appui pourrait se perdre)
-  const conf=sur&&performance.now()-sur<3000;
+  const conf=sur&&Date.now()-sur<3000;
   const html=`<div class="haut">${haut}</div><div class="temps" aria-live="off"></div><div class="exo">${milieu}</div><div class="apres">${apres}</div>
    <div class="bas">${fini?'':`<button class="bt" type="button" data-a="pause">${enPause?'▶ Reprendre':'⏸ Pause'}</button>`}<button class="bt" type="button" data-a="son">${son?'🔊 Son':'🔇 Muet'}</button><button class="bt" type="button" data-a="stop">${fini?'Fermer':conf?'Sûr ? Touche encore':'■ Arrêter'}</button></div>`;
   if(html!==dernHtml){E.innerHTML=html;dernHtml=html}
@@ -85,9 +87,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   else if(a==='plus'){const pris=new Set(C.ex.map(x=>x.m)),m=MOUV.find(x=>!pris.has(x.id));C.ex.push({m:m.id,reps:10})}
   else if(a==='moins')C.ex.pop();
   else if(a==='go'){lancer();return}
-  else if(a==='pause'){if(enPause){debut+=performance.now()-pause;enPause=false}else{pause=performance.now();enPause=true}peindre();return}
+  else if(a==='pause'){if(enPause){debut+=Date.now()-pause;enPause=false}else{pause=Date.now();enPause=true}peindre();return}
   else if(a==='son'){son=!son;peindre();return}
-  else if(a==='stop'){if(tick&&!(sur&&performance.now()-sur<3000)){sur=performance.now();peindre();return}arreter();return}
+  else if(a==='stop'){if(tick&&!(sur&&Date.now()-sur<3000)){sur=Date.now();peindre();return}arreter();return}
   else return;
   garder();reglage()});
 document.addEventListener('change',e=>{const t=e.target;
@@ -96,7 +98,7 @@ document.addEventListener('change',e=>{const t=e.target;
   else if(t.dataset.r!=null)C.ex[+t.dataset.r].reps=Math.max(0,+t.value||0);
   else return;garder();reglage()});
 document.addEventListener('keydown',e=>{if($('#ecran').hidden)return;if(e.key===' '){e.preventDefault();const b=document.querySelector('[data-a=pause]');b&&b.click()}if(e.key==='Escape'&&!tick)arreter();if(e.key==='Escape'&&tick){const b=document.querySelector('[data-a=stop]');b&&b.click()}});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&tick)eveille()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&tick){eveille();peindre()}});
 const th=$('#theme');const majT=()=>th.textContent=document.documentElement.dataset.theme==='dark'?'☀️':'🌙';
 th.addEventListener('click',()=>{const d=document.documentElement.dataset.theme==='dark';if(d)delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme='dark';try{localStorage.setItem('eps_theme',d?'light':'dark')}catch(e){}majT()});majT();
 reglage();
