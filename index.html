@@ -318,6 +318,11 @@ html.chrono-ouvert,html.chrono-ouvert body{overflow:hidden}
 .qr-plein .qrbox svg{width:min(64vh,90vw);height:auto}
 .propose{display:block;font-size:13px;color:var(--repere);margin-top:3px}.propose.ecart{color:var(--alerte,#b91c1c);font-weight:700}
 .alerte-pt{display:inline-block;border:1.5px solid;border-radius:10px;padding:2px 8px;margin:2px;font-weight:700;font-size:max(14px,var(--fs-min,15px))}
+
+/* appel (chantier 10) : choix de la séance */
+.puces{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}.puces button{min-width:52px;min-height:46px;border-radius:12px;border:2px solid #cbd5e1;background:#fff;color:#1c2128;font:inherit;font-weight:800;font-size:16px;cursor:pointer}
+.puces button.ici{background:#c2410c;border-color:#c2410c;color:#fff}
+:root[data-theme="dark"] .puces button{background:#161b22;color:#e6edf3;border-color:#2a313b}:root[data-theme="dark"] .puces button.ici{background:#c2410c;color:#fff}
 </style>
 <style>#print-area{display:none}@media print{body>*:not(#print-area){display:none!important}#print-area{display:block;color:#000;font:11pt Arial,sans-serif}#print-area table{border-collapse:collapse;width:100%}#print-area td,#print-area th{border:1px solid #999;padding:3px;text-align:left}}</style>
 <style>/* Lisibilité terrain : textes à 15 px minimum à l'écran ; tailles d'origine à l'impression. */@media print{:root{--fs-min:0px}}</style>
