@@ -115,8 +115,17 @@ function importerObjet(o,source){
   const old=DB.rec[cle];
   if(old&&old.ts>ts)return 'Déjà plus récent : '+o.eleve+' S'+o.seance;
   DB.rec[cle]=Object.assign({},o,{classe:c,ts,source:source||o.source||'fichier',recu:Date.now()});
+  SCX={c,s:+o.seance};
   return (old?'Mis à jour : ':'Reçu : ')+o.eleve+' · séance '+o.seance;
 }
+let SCX=null;   /* classe et séance du dernier QR lu (pour « Encore N élèves à scanner ») */
+/* v. « Encore N élèves à scanner » affiché dans le scanner, sous le nom des élèves lus (règle commune des outils prof).
+   manque : noms des élèves de la classe sans séance reçue (hors absents notés à l'appel) ; lib : « classe · séance ». */
+function resteBloc(manque,total,lib,nAbs){if(!total)return '';const s=manque.length>1?'s':'',ab=nAbs?` · ${nAbs} absent${nAbs>1?'s':''} non compté${nAbs>1?'s':''}`:'';
+  return manque.length?`<div class="scan-reste" style="background:#fff7ed;border:2px solid #fb923c;border-radius:12px;padding:8px 10px;color:#14181f;text-align:left"><b style="font-size:20px">Encore ${manque.length} élève${s} à scanner</b> <span style="font-size:14px">· ${esc(lib)}${ab}</span><div style="font-size:15px;margin-top:4px;line-height:1.35">${manque.map(esc).join(', ')}</div></div>`
+    :`<div class="scan-reste ok" style="background:#dcfce7;border:2px solid #22c55e;border-radius:12px;padding:8px 10px;color:#14532d;text-align:left"><b style="font-size:20px">✓ Toute la classe est scannée</b> <span style="font-size:14px">· ${esc(lib)}${ab}</span></div>`}
+function resteScan(){const x=SCX;if(!x||!x.c||!x.s)return '';const c0=DB.classe;DB.classe=x.c;
+  try{const K=elevesClasse(),m=K.filter(([k])=>!DB.rec[k+'|'+x.s]);return resteBloc(m.map(([k,n])=>n),K.length,x.c+' · séance '+x.s,0)}finally{DB.classe=c0}}
 async function importerFichiers(files){
   let n=0,err=[];
   const un=async(nom,txt)=>{try{const o=JSON.parse(txt);importerObjet(o,'fichier');n++}catch(e){err.push(nom)}};
@@ -165,8 +174,8 @@ async function lirePhoto(f){
   if(typeof jsQR!=='function')await chargerScript('jsqr.js','jsQR');
   const q=jsQR(d.data,d.width,d.height,{inversionAttempts:'attemptBoth'});if(!q)throw new Error('QR non reconnu sur la photo : reprends-la plus nette et bien cadrée.');
   return lireTexte(q.data)}
-function scanner(){TTQR.scanner(async t=>{const m=await lireTexte(t);sauver();return m},
-  {continu:true,titre:'Scanner les QR des élèves',aide:'Les QR s’enchaînent : présentez-les l’un après l’autre.',onClose:n=>{if(n)journal(n+' QR lus');sauver();rendre()}})}
+function scanner(){SCX=null;TTQR.scanner(async t=>{const m=await lireTexte(t);sauver();return m},
+  {continu:true,titre:'Scanner les QR des élèves',aide:'Les QR s’enchaînent : présentez-les l’un après l’autre.',reste:resteScan,onClose:n=>{if(n)journal(n+' QR lus');sauver();rendre()}})}
 
 /* ---------- Requêtes ---------- */
 const classes=()=>Object.keys(DB.classesL).sort();
