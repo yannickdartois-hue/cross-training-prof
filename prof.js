@@ -341,6 +341,9 @@ const APA={db:()=>DB,sauver:()=>sauver(),rendre:()=>{const y=scrollY;rendre();sc
   nom:k=>nomDe(k),nomSeance:s=>'S'+s,autoTxt:'d’après la séance reçue',
   autoDe:(k,S)=>{const r=recDe(k,+S);if(r&&r.dispense)return {s:'i',info:'dispensé selon la séance reçue'};if(r)return {s:'p',info:'séance reçue'};return {nonRecu:true}}};
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-aps]');if(!b)return;e.preventDefault();e.stopPropagation();DB.apS={s:b.dataset.aps,d:apJour(),c:DB.classe};sauver();rendre()},true);
+/* lien vers le cahier de textes (résumés Pronote) de l'écran de cours du cycle */
+const CAHIER_URL='https://yannickdartois-hue.github.io/cycle-cross-training/index.html#cahier';
+function cahierLien(){return `<a href="${CAHIER_URL}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;min-height:56px;margin:10px 0 14px;padding:10px 14px;border-radius:14px;border:2px solid #334155;background:#fff;color:#1c2128;text-decoration:none;font-weight:800;font-size:17px"><span style="font-size:24px">📋</span><span>Cahier de textes · résumés à coller dans Pronote<small style="display:block;font-weight:400;font-size:14px;color:#5b6470">Ouvre l’écran de cours du cycle (texte de chaque séance, PDF, Word)</small></span></a>`}
 /* ===================== Appel (chantier 10, 26/11/2026) =====================
    Repris du module d'appel de Demi-fond et mis à niveau. Code propre à cet outil (copie autonome). Ici, la liste des appréciations s'appelle APPR (APP est déjà pris par prof-oubli.js).
    4 statuts exclusifs : Présent · Absent · Inapte · Inapte partiel (absent ≠ inapte, partout).
@@ -606,7 +609,7 @@ function vEpreuve(){
 }
 function vExport(){
   const E=DB.classe?elevesClasse():[];
-  return `<h2>Exporter</h2>${AVT('tableau','Vérifie les notes avant de les reporter dans Pronote.')}
+  return `<h2>Exporter</h2>${cahierLien()}${AVT('tableau','Vérifie les notes avant de les reporter dans Pronote.')}
   ${DB.classe?`<section class="carte"><h3>Notes de ${esc(DB.classe)}</h3><div class="defile"><table class="tab"><tr><th>Élève</th><th>Produire /7</th><th>Analyser /5</th><th>AFL2</th><th>AFL3</th><th>Répartition</th><th>Total /20</th></tr>
     ${E.map(([k,n])=>{const t=totalNote(k);return `<tr><td>${esc(n)}</td><td>${t.p.toFixed(2)}</td><td>${t.a.toFixed(2)}</td><td>${t.c.toFixed(2)}</td><td>${t.r.toFixed(2)}</td><td>${repartition(k)}</td><td><b>${t.tot.toFixed(1)}</b>${t.complet?'':' <small class="muted">incomplet</small>'}</td></tr>`}).join('')}</table></div>
     <div class="rangee"><button class="bt orange" type="button" data-act="csvnotes">Notes (CSV)</button><button class="bt" type="button" data-act="csvseances">Toutes les séances (CSV)</button><button class="bt" type="button" data-act="pdf">🖨 Imprimer / PDF</button><button class="bt" type="button" data-act="json">{ } Séances (JSON)</button></div></section>`:''}
